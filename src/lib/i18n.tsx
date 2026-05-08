@@ -1,0 +1,357 @@
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+
+export type Locale = 'es' | 'en';
+
+const en = {
+  common: {
+    appName: 'BESTEAMHN AI Tutor',
+    tagline: 'Empowering education through AI & blockchain',
+    mission: 'BESTEAMHN AI Tutor gives underserved children access to personalized world-class education through AI agents. We start in Honduras and scale globally using Solana-powered credentials and rewards.',
+    connectWallet: 'Connect Wallet',
+    disconnect: 'Disconnect',
+    loading: 'Loading...',
+    save: 'Save',
+    cancel: 'Cancel',
+    confirm: 'Confirm',
+    delete: 'Delete',
+    edit: 'Edit',
+    create: 'Create',
+    search: 'Search...',
+    noResults: 'No results found',
+    viewAll: 'View All',
+    back: 'Back',
+    next: 'Next',
+    submit: 'Submit',
+    steamTokens: 'STEAM',
+    enrolled: 'Enrolled',
+    completed: 'Completed',
+    inProgress: 'In Progress',
+    notStarted: 'Not Started',
+  },
+  nav: {
+    dashboard: 'Dashboard',
+    courses: 'Courses',
+    myNfts: 'My NFTs',
+    workshops: 'Workshops',
+    aiTutor: 'AI Tutor',
+    leaderboard: 'Leaderboard',
+    admin: 'Admin',
+    settings: 'Settings',
+  },
+  dashboard: {
+    welcome: 'Welcome back',
+    aiGreeting: 'Your AI Tutor is ready to help you learn today!',
+    myCourses: 'My Courses',
+    myAchievements: 'My Achievements',
+    steamBalance: 'STEAM Balance',
+    progressAnalytics: 'Progress Analytics',
+    aiSessions: 'AI Tutor Sessions',
+    recentActivity: 'Recent Activity',
+    lessonsCompleted: 'Lessons Completed',
+    coursesEnrolled: 'Courses Enrolled',
+    certificatesEarned: 'Certificates Earned',
+    weeklyProgress: 'Weekly Progress',
+    noCoursesYet: 'No courses yet. Start learning!',
+    viewCatalog: 'Browse Courses',
+    totalEarned: 'Total Earned',
+    thisWeek: 'This Week',
+    streak: 'Day Streak',
+  },
+  courses: {
+    catalog: 'Course Catalog',
+    catalogDesc: 'Discover world-class courses and earn STEAM tokens',
+    allCategories: 'All Categories',
+    programming: 'Programming',
+    softSkills: 'Soft Skills',
+    design: 'Design',
+    robotics: 'Robotics',
+    allDifficulties: 'All Levels',
+    beginner: 'Beginner',
+    intermediate: 'Intermediate',
+    advanced: 'Advanced',
+    duration: 'Duration',
+    difficulty: 'Difficulty',
+    reward: 'Reward',
+    lessons: 'Lessons',
+    enroll: 'Enroll Now',
+    startLearning: 'Start Learning',
+    continueLesson: 'Continue',
+    courseCompleted: 'Course Completed!',
+    enrollConfirm: 'Confirm enrollment in this course?',
+    steamReward: 'STEAM Reward',
+    progress: 'Progress',
+    students: 'students',
+  },
+  nfts: {
+    myGallery: 'My NFT Certificates',
+    galleryDesc: 'Your verifiable on-chain credentials',
+    noCertificates: 'Complete courses to earn NFT certificates!',
+    completionDate: 'Completed',
+    grade: 'Grade',
+    verifyOnChain: 'Verify on Solana',
+    mintAddress: 'Mint Address',
+    globalCredential: 'Global Verifiable Credential',
+  },
+  workshops: {
+    title: 'Workshops',
+    description: 'Reserve your spot in upcoming workshops',
+    upcoming: 'Upcoming Workshops',
+    myReservations: 'My Reservations',
+    reserve: 'Reserve Spot',
+    cancelReservation: 'Cancel Reservation',
+    spotsLeft: 'spots left',
+    full: 'Full',
+    reserved: 'Reserved',
+    date: 'Date',
+    time: 'Time',
+    capacity: 'Capacity',
+    instructor: 'Instructor',
+    location: 'Location',
+  },
+  aiTutor: {
+    title: 'AI Tutor',
+    description: 'Your personal AI learning assistant',
+    askQuestion: 'Ask AI Tutor',
+    placeholder: 'Type your question here...',
+    send: 'Send',
+    thinking: 'Thinking...',
+    greeting: 'Hello! I\'m your AI Tutor. I\'m here to help you learn. What would you like to study today?',
+    sessions: 'Chat Sessions',
+    newSession: 'New Session',
+    bilingual: 'I speak English and Spanish!',
+    hint: 'Give me a hint',
+    explain: 'Explain this',
+    quiz: 'Quiz me',
+  },
+  leaderboard: {
+    title: 'Leaderboard',
+    description: 'Top learners in the BESTEAMHN community',
+    rank: 'Rank',
+    student: 'Student',
+    steam: 'STEAM',
+    courses: 'Courses',
+    certificates: 'Certificates',
+    thisMonth: 'This Month',
+    allTime: 'All Time',
+  },
+  admin: {
+    title: 'Admin Panel',
+    description: 'Manage courses, students, and workshops',
+    createCourse: 'Create Course',
+    manageCourses: 'Manage Courses',
+    manageStudents: 'Students',
+    manageWorkshops: 'Workshops',
+    analytics: 'Analytics',
+    markCompleted: 'Mark Completed',
+    courseTitle: 'Course Title',
+    courseDescription: 'Description',
+    courseLessons: 'Number of Lessons',
+    courseReward: 'STEAM Reward',
+    courseCategory: 'Category',
+    courseDifficulty: 'Difficulty',
+    totalStudents: 'Total Students',
+    activeCourses: 'Active Courses',
+    tokensDistributed: 'Tokens Distributed',
+    aiQuestions: 'AI Questions Asked',
+  },
+};
+
+const es: typeof en = {
+  common: {
+    appName: 'BESTEAMHN AI Tutor',
+    tagline: 'Potenciando la educación con IA y blockchain',
+    mission: 'BESTEAMHN AI Tutor brinda a niños desfavorecidos acceso a educación personalizada de clase mundial a través de agentes de IA. Comenzamos en Honduras y escalamos globalmente usando credenciales y recompensas impulsadas por Solana.',
+    connectWallet: 'Conectar Billetera',
+    disconnect: 'Desconectar',
+    loading: 'Cargando...',
+    save: 'Guardar',
+    cancel: 'Cancelar',
+    confirm: 'Confirmar',
+    delete: 'Eliminar',
+    edit: 'Editar',
+    create: 'Crear',
+    search: 'Buscar...',
+    noResults: 'No se encontraron resultados',
+    viewAll: 'Ver Todo',
+    back: 'Volver',
+    next: 'Siguiente',
+    submit: 'Enviar',
+    steamTokens: 'STEAM',
+    enrolled: 'Inscrito',
+    completed: 'Completado',
+    inProgress: 'En Progreso',
+    notStarted: 'No Iniciado',
+  },
+  nav: {
+    dashboard: 'Panel',
+    courses: 'Cursos',
+    myNfts: 'Mis NFTs',
+    workshops: 'Talleres',
+    aiTutor: 'Tutor IA',
+    leaderboard: 'Clasificación',
+    admin: 'Admin',
+    settings: 'Ajustes',
+  },
+  dashboard: {
+    welcome: 'Bienvenido de vuelta',
+    aiGreeting: '¡Tu Tutor IA está listo para ayudarte a aprender hoy!',
+    myCourses: 'Mis Cursos',
+    myAchievements: 'Mis Logros',
+    steamBalance: 'Balance STEAM',
+    progressAnalytics: 'Análisis de Progreso',
+    aiSessions: 'Sesiones con Tutor IA',
+    recentActivity: 'Actividad Reciente',
+    lessonsCompleted: 'Lecciones Completadas',
+    coursesEnrolled: 'Cursos Inscritos',
+    certificatesEarned: 'Certificados Obtenidos',
+    weeklyProgress: 'Progreso Semanal',
+    noCoursesYet: 'Sin cursos aún. ¡Empieza a aprender!',
+    viewCatalog: 'Explorar Cursos',
+    totalEarned: 'Total Ganado',
+    thisWeek: 'Esta Semana',
+    streak: 'Días Seguidos',
+  },
+  courses: {
+    catalog: 'Catálogo de Cursos',
+    catalogDesc: 'Descubre cursos de clase mundial y gana tokens STEAM',
+    allCategories: 'Todas las Categorías',
+    programming: 'Programación',
+    softSkills: 'Habilidades Blandas',
+    design: 'Diseño',
+    robotics: 'Robótica',
+    allDifficulties: 'Todos los Niveles',
+    beginner: 'Principiante',
+    intermediate: 'Intermedio',
+    advanced: 'Avanzado',
+    duration: 'Duración',
+    difficulty: 'Dificultad',
+    reward: 'Recompensa',
+    lessons: 'Lecciones',
+    enroll: 'Inscribirse',
+    startLearning: 'Empezar',
+    continueLesson: 'Continuar',
+    courseCompleted: '¡Curso Completado!',
+    enrollConfirm: '¿Confirmar inscripción en este curso?',
+    steamReward: 'Recompensa STEAM',
+    progress: 'Progreso',
+    students: 'estudiantes',
+  },
+  nfts: {
+    myGallery: 'Mis Certificados NFT',
+    galleryDesc: 'Tus credenciales verificables en la cadena',
+    noCertificates: '¡Completa cursos para obtener certificados NFT!',
+    completionDate: 'Completado',
+    grade: 'Calificación',
+    verifyOnChain: 'Verificar en Solana',
+    mintAddress: 'Dirección de Mint',
+    globalCredential: 'Credencial Global Verificable',
+  },
+  workshops: {
+    title: 'Talleres',
+    description: 'Reserva tu lugar en los próximos talleres',
+    upcoming: 'Próximos Talleres',
+    myReservations: 'Mis Reservaciones',
+    reserve: 'Reservar Lugar',
+    cancelReservation: 'Cancelar Reservación',
+    spotsLeft: 'lugares disponibles',
+    full: 'Lleno',
+    reserved: 'Reservado',
+    date: 'Fecha',
+    time: 'Hora',
+    capacity: 'Capacidad',
+    instructor: 'Instructor',
+    location: 'Ubicación',
+  },
+  aiTutor: {
+    title: 'Tutor IA',
+    description: 'Tu asistente personal de aprendizaje con IA',
+    askQuestion: 'Preguntar al Tutor IA',
+    placeholder: 'Escribe tu pregunta aquí...',
+    send: 'Enviar',
+    thinking: 'Pensando...',
+    greeting: '¡Hola! Soy tu Tutor IA. Estoy aquí para ayudarte a aprender. ¿Qué te gustaría estudiar hoy?',
+    sessions: 'Sesiones de Chat',
+    newSession: 'Nueva Sesión',
+    bilingual: '¡Hablo inglés y español!',
+    hint: 'Dame una pista',
+    explain: 'Explícame esto',
+    quiz: 'Hazme un quiz',
+  },
+  leaderboard: {
+    title: 'Clasificación',
+    description: 'Los mejores estudiantes de la comunidad BESTEAMHN',
+    rank: 'Posición',
+    student: 'Estudiante',
+    steam: 'STEAM',
+    courses: 'Cursos',
+    certificates: 'Certificados',
+    thisMonth: 'Este Mes',
+    allTime: 'Histórico',
+  },
+  admin: {
+    title: 'Panel de Admin',
+    description: 'Administrar cursos, estudiantes y talleres',
+    createCourse: 'Crear Curso',
+    manageCourses: 'Gestionar Cursos',
+    manageStudents: 'Estudiantes',
+    manageWorkshops: 'Talleres',
+    analytics: 'Analíticas',
+    markCompleted: 'Marcar Completado',
+    courseTitle: 'Título del Curso',
+    courseDescription: 'Descripción',
+    courseLessons: 'Número de Lecciones',
+    courseReward: 'Recompensa STEAM',
+    courseCategory: 'Categoría',
+    courseDifficulty: 'Dificultad',
+    totalStudents: 'Total Estudiantes',
+    activeCourses: 'Cursos Activos',
+    tokensDistributed: 'Tokens Distribuidos',
+    aiQuestions: 'Preguntas al IA',
+  },
+};
+
+const translations = { en, es };
+
+type TranslationKeys = typeof en;
+
+interface I18nContextType {
+  locale: Locale;
+  setLocale: (locale: Locale) => void;
+  t: TranslationKeys;
+}
+
+const I18nContext = createContext<I18nContextType>({
+  locale: 'es',
+  setLocale: () => {},
+  t: es,
+});
+
+export function I18nProvider({ children }: { children: React.ReactNode }) {
+  const [locale, setLocaleState] = useState<Locale>(() => {
+    const stored = localStorage.getItem('besteamhn-locale');
+    if (stored === 'en' || stored === 'es') return stored;
+    const browserLang = navigator.language.slice(0, 2);
+    return browserLang === 'en' ? 'en' : 'es';
+  });
+
+  const setLocale = useCallback((newLocale: Locale) => {
+    setLocaleState(newLocale);
+    localStorage.setItem('besteamhn-locale', newLocale);
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.lang = locale;
+  }, [locale]);
+
+  const t = translations[locale];
+
+  return (
+    <I18nContext.Provider value={{ locale, setLocale, t }}>
+      {children}
+    </I18nContext.Provider>
+  );
+}
+
+export function useI18n() {
+  return useContext(I18nContext);
+}
