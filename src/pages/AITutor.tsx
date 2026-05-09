@@ -3,22 +3,17 @@ import { useI18n } from '@/lib/i18n';
 import { Bot, Send, Plus, MessageSquare, Lightbulb, HelpCircle, ClipboardCheck, Sparkles } from 'lucide-react';
 import type { ChatMessage } from '@/lib/mockData';
 
-const aiResponses = [
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+
+const fallbackResponses = [
   {
-    en: "Great question! Let me break this down for you. The key concept here is to think about it step by step. First, understand the basics, then build on that knowledge gradually. Would you like me to give you an example?",
-    es: "¡Gran pregunta! Déjame desglosarlo para ti. El concepto clave aquí es pensarlo paso a paso. Primero, entiende lo básico, luego construye sobre ese conocimiento gradualmente. ¿Te gustaría que te dé un ejemplo?",
+    en: "Great question! Let me break this down for you. Think about it step by step — start with the basics and build from there. Would you like an example?",
+    es: "¡Gran pregunta! Pensemos paso a paso — empieza con lo básico y construye desde ahí. ¿Te gustaría un ejemplo?",
   },
   {
-    en: "That's a wonderful curiosity to have! Here's how I'd explain it: imagine you're building with LEGO blocks. Each concept is a block, and together they form something amazing. Let's start with the first block.",
-    es: "¡Es una curiosidad maravillosa! Así es como lo explicaría: imagina que construyes con bloques LEGO. Cada concepto es un bloque, y juntos forman algo increíble. Comencemos con el primer bloque.",
-  },
-  {
-    en: "You're on the right track! Let me add some clarity. This concept connects to what you learned before. Think of it as an extension of the previous lesson. The pattern is the same, just applied differently.",
-    es: "¡Vas por buen camino! Déjame agregar algo de claridad. Este concepto se conecta con lo que aprendiste antes. Piénsalo como una extensión de la lección anterior. El patrón es el mismo, solo aplicado de forma diferente.",
-  },
-  {
-    en: "Excellent progress! Here's a quiz for you: Can you explain in your own words what this concept means? Try to use an example from your daily life. I'll help if you get stuck!",
-    es: "¡Excelente progreso! Aquí va un quiz: ¿Puedes explicar con tus propias palabras qué significa este concepto? Intenta usar un ejemplo de tu vida diaria. ¡Te ayudo si te atascas!",
+    en: "You're on the right track! This connects to what you've already learned. The pattern is the same, just applied a bit differently.",
+    es: "¡Vas por buen camino! Esto se conecta con lo que ya aprendiste. El patrón es el mismo, solo aplicado de forma diferente.",
   },
 ];
 
@@ -45,7 +40,7 @@ export default function AITutor() {
       messages: [
         { id: '0', role: 'assistant', content: t.aiTutor.greeting, timestamp: new Date() },
         { id: '1', role: 'user', content: locale === 'es' ? '¿Cómo funcionan los bucles for?' : 'How do for loops work?', timestamp: new Date() },
-        { id: '2', role: 'assistant', content: aiResponses[0][locale], timestamp: new Date() },
+        { id: '2', role: 'assistant', content: fallbackResponses[0][locale], timestamp: new Date() },
       ],
     },
   ]);
@@ -60,7 +55,7 @@ export default function AITutor() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [currentSession?.messages]);
 
-  const sendMessage = () => {
+  const sendMessage = async () => {
     if (!input.trim() || !currentSession) return;
 
     const userMsg: ChatMessage = {
@@ -70,14 +65,42 @@ export default function AITutor() {
       timestamp: new Date(),
     };
 
+    const updatedMessages = [...currentSession.messages, userMsg];
     setSessions((prev) =>
-      prev.map((s) => s.id === activeSession ? { ...s, messages: [...s.messages, userMsg] } : s)
+    prev.map((s) => s.id === activeSession ? { ...s, messages: [...s.messages, userMsg] } : s)
+
     );
     setInput('');
     setIsTyping(true);
 
-    setTimeout(() => {
-      const resp = aiResponses[Math.floor(Math.random() * aiResponses.length)];
+    try {
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/ai-tutor`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify({
+          messages: updatedMessages.map((m) => ({ role: m.role, content: m.content })),
+          locale,
+        }),
+      });
+
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+
+      const aiMsg: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: data.content,
+        timestamp: new Date(),
+      };
+      setSessions((prev) =>
+        prev.map((s) => (s.id === activeSession ? { ...s, messages: [...s.messages, aiMsg] } : s))
+      );
+    } catch {
+      const resp = fallbackResponses[Math.floor(Math.random() * fallbackResponses.length)];
       const aiMsg: ChatMessage = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
@@ -85,10 +108,12 @@ export default function AITutor() {
         timestamp: new Date(),
       };
       setSessions((prev) =>
-        prev.map((s) => s.id === activeSession ? { ...s, messages: [...s.messages, aiMsg] } : s)
+      prev.map((s) => s.id === activeSession ? { ...s, messages: [...s.messages, aiMsg] } : s)
+
       );
+    } finally {
       setIsTyping(false);
-    }, 1500);
+    }
   };
 
   const createSession = () => {

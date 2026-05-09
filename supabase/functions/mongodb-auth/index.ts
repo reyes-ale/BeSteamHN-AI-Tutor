@@ -225,6 +225,33 @@ Deno.serve(async (req: Request) => {
         });
       }
 
+      // LEADERBOARD
+      if (path === "leaderboard" && req.method === "GET") {
+        const limit = Math.min(parseInt(url.searchParams.get("limit") || "10"), 50);
+
+        const topUsers = await users
+          .find({}, { projection: { name: 1, steamBalance: 1, coursesCompleted: 1, certificates: 1 } })
+          .sort({ steamBalance: -1 })
+          .limit(limit)
+          .toArray();
+
+        const leaderboardData = topUsers.map((user, i) => ({
+          rank: i + 1,
+          name: user.name,
+          avatar: (user.name as string)
+            .split(" ")
+            .map((n: string) => n[0])
+            .join("")
+            .slice(0, 2)
+            .toUpperCase(),
+          steam: user.steamBalance || 0,
+          coursesCompleted: user.coursesCompleted || 0,
+          certificates: user.certificates || 0,
+        }));
+
+        return respond({ leaderboard: leaderboardData });
+      }
+
       return respond({ error: "Not found" }, 404);
     } finally {
       await client.close();
