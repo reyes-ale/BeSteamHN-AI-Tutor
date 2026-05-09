@@ -2,6 +2,7 @@ import React from 'react';
 import { useI18n } from '@/lib/i18n';
 import { useAuth } from '@/lib/auth';
 import { useWallet } from '@solana/wallet-adapter-react';
+import { useSteamBalance } from '@/hooks/useSteamBalance';
 import { Link } from 'react-router-dom';
 import { BookOpen, Award, Coins, TrendingUp, Bot, Flame, ArrowRight, ChevronRight, Sparkles } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
@@ -13,6 +14,7 @@ export default function Dashboard() {
   const { publicKey } = useWallet();
   const { user } = useAuth();
   const studentName = user?.name?.split(' ')[0] || 'Student';
+  const { balance: steamBalance } = useSteamBalance();
 
   const stats = [
     {
@@ -210,8 +212,8 @@ export default function Dashboard() {
                 <Coins className="h-5 w-5 text-white" />
                 <span className="text-sm font-bold text-white">{t.dashboard.steamBalance}</span>
               </div>
-              <p className="text-4xl font-extrabold text-white mt-1">350</p>
-              <p className="text-xs text-white/70 mt-1">{t.dashboard.totalEarned}: 350 STEAM</p>
+              <p className="text-4xl font-extrabold text-white mt-1">{steamBalance}</p>
+              <p className="text-xs text-white/70 mt-1">{t.dashboard.totalEarned}: {steamBalance} STEAM</p>
             </div>
             <div className="bg-white/80 backdrop-blur-sm p-4 border border-white/50">
               <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">

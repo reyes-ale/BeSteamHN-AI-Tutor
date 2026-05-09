@@ -39,7 +39,7 @@ const AuthContext = createContext<AuthContextType>({
   isAuthenticated: false,
   signUp: async () => ({ success: false }),
   signIn: async () => ({ success: false }),
-  signOut: async () => {},
+  signOut: async () => { },
 });
 
 function mapSupabaseUser(user: any): AuthUser {
@@ -109,26 +109,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           },
         });
 
-        if (error) {
-          return {
-            success: false,
-            error: error.message,
-          };
-        }
+        if (error) return { success: false, error: error.message };
 
+        // ✅ Insertar perfil automáticamente
         if (data.user) {
+          await supabase.from("profiles").insert({
+            id: data.user.id,
+            name,
+            role: "student",
+            steam_balance: 0,
+            courses_completed: 0,
+            certificates: 0,
+          });
+
           setUser(mapSupabaseUser(data.user));
         }
 
         return { success: true };
       } catch (err) {
-        const message =
-          err instanceof Error ? err.message : "Error inesperado al registrarse";
-
-        return {
-          success: false,
-          error: message,
-        };
+        const message = err instanceof Error ? err.message : "Error inesperado al registrarse";
+        return { success: false, error: message };
       }
     },
     []

@@ -3,12 +3,14 @@ import { useI18n, type Locale } from '@/lib/i18n';
 import { useAuth } from '@/lib/auth';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { useWallet } from '@solana/wallet-adapter-react';
+import { useSteamBalance } from '@/hooks/useSteamBalance';
 import { Coins, Bell, Globe, LogOut, User } from 'lucide-react';
 
 export default function TopBar() {
   const { locale, setLocale, t } = useI18n();
   const { publicKey } = useWallet();
   const { user, signOut } = useAuth();
+  const { balance } = useSteamBalance();
 
   const toggleLocale = () => {
     setLocale(locale === 'es' ? 'en' : 'es');
@@ -31,7 +33,7 @@ export default function TopBar() {
         {/* STEAM Balance */}
         <div className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-400 to-orange-400 px-3 py-1.5 shadow-md shadow-amber-200/60">
           <Coins className="h-4 w-4 text-white" />
-          <span className="text-sm font-bold text-white">350</span>
+          <span className="text-sm font-bold text-white">{balance}</span>
           <span className="text-xs font-medium text-white/80">{t.common.steamTokens}</span>
         </div>
 
