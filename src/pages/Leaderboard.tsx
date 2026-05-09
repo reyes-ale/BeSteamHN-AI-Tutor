@@ -3,18 +3,19 @@ import { useI18n } from '@/lib/i18n';
 import { Trophy, Coins, BookOpen, Award } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import type { LeaderboardEntry } from '@/lib/mockData';
+import { leaderboard, type LeaderboardEntry } from '@/lib/mockData';
 import { supabase } from '@/lib/supabase';
 
 async function fetchLeaderboard(): Promise<LeaderboardEntry[]> {
   const { data, error } = await supabase
     .from('profiles')
     .select('id, name, steam_balance, courses_completed, certificates')
+    .eq('role', 'student')
     .order('steam_balance', { ascending: false })
     .limit(10);
 
   if (error) throw new Error(error.message);
-  if (!data) return [];
+  if (!data || data.length === 0) return leaderboard;
 
   return data.map((row: any, i: number) => ({
     rank: i + 1,
@@ -51,7 +52,7 @@ export default function Leaderboard() {
   useEffect(() => {
     fetchLeaderboard()
       .then(setEntries)
-      .catch(() => setEntries([]))
+      .catch(() => setEntries(leaderboard))
       .finally(() => setLoading(false));
   }, []);
 
@@ -73,10 +74,10 @@ export default function Leaderboard() {
 
         <TabsContent value="allTime" className="mt-4 space-y-6">
           {/* Podium */}
-          {!loading && top3.length >= 3 && (
-            <div className="flex items-end justify-center gap-4 pb-4">
+          {!loading && top3.length > 0 && (
+            <div className="mx-auto grid w-full max-w-xl grid-cols-3 items-end justify-items-center gap-4 pb-4">
               {/* 2nd Place */}
-              <div className="flex flex-col items-center">
+              {top3[1] && <div className="flex flex-col items-center">
                 <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted text-lg font-bold text-foreground border-2 border-border">
                   {top3[1].avatar}
                 </div>
@@ -88,7 +89,7 @@ export default function Leaderboard() {
                 <div className="mt-3 flex h-20 w-24 items-center justify-center rounded-t-xl bg-muted">
                   <span className="text-2xl font-bold text-muted-foreground">2</span>
                 </div>
-              </div>
+              </div>}
 
               {/* 1st Place */}
               <div className="flex flex-col items-center">
@@ -111,7 +112,7 @@ export default function Leaderboard() {
               </div>
 
               {/* 3rd Place */}
-              <div className="flex flex-col items-center">
+              {top3[2] && <div className="flex flex-col items-center">
                 <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted text-lg font-bold text-foreground border-2 border-border">
                   {top3[2].avatar}
                 </div>
@@ -123,7 +124,7 @@ export default function Leaderboard() {
                 <div className="mt-3 flex h-14 w-24 items-center justify-center rounded-t-xl bg-muted">
                   <span className="text-2xl font-bold text-muted-foreground">3</span>
                 </div>
-              </div>
+              </div>}
             </div>
           )}
 

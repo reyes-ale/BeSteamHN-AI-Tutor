@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useI18n } from '@/lib/i18n';
 import { useAuth } from '@/lib/auth';
-import { GraduationCap, Mail, Lock, User, Eye, EyeOff, ArrowRight, Globe, Loader2, Sparkles } from 'lucide-react';
+import { GraduationCap, Mail, Lock, User, Eye, EyeOff, ArrowRight, Globe, Loader2, Sparkles, BookOpen } from 'lucide-react';
 
 const AVATARS = ['🧑‍💻', '👩‍🎓', '🧑‍🚀', '👩‍🔬', '🧑‍🎨', '👩‍💼', '🧑‍🏫', '👩‍🏫'];
 
@@ -19,6 +19,7 @@ export default function SignUp() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [selectedAvatar, setSelectedAvatar] = useState(0);
+  const [role, setRole] = useState<'student' | 'educator'>('student');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,7 +36,7 @@ export default function SignUp() {
     }
 
     setLoading(true);
-    const result = await signUp(name, email, password);
+    const result = await signUp(name, email, password, role);
     setLoading(false);
 
     if (result.success) {
@@ -160,6 +161,36 @@ export default function SignUp() {
                   }`}
                 >
                   {av}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Role Selector */}
+          <div className="mb-6">
+            <p className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">
+              {locale === 'es' ? 'Soy...' : 'I am a...'}
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              {([
+                { value: 'student', icon: GraduationCap, label: locale === 'es' ? 'Estudiante' : 'Student', desc: locale === 'es' ? 'Aprendo y gano STEAM' : 'I learn and earn STEAM' },
+                { value: 'educator', icon: BookOpen, label: locale === 'es' ? 'Educador' : 'Educator', desc: locale === 'es' ? 'Enseño y creo cursos' : 'I teach and create courses' },
+              ] as const).map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setRole(opt.value)}
+                  className={`flex flex-col items-center gap-1.5 rounded-2xl border-2 px-3 py-4 text-center transition-all duration-200 ${
+                    role === opt.value
+                      ? 'border-violet-400 bg-violet-50 shadow-sm shadow-violet-100'
+                      : 'border-white/60 bg-white/50 hover:border-violet-200 hover:bg-violet-50/50'
+                  }`}
+                >
+                  <div className={`flex h-9 w-9 items-center justify-center rounded-xl ${role === opt.value ? 'bg-gradient-to-br from-violet-500 to-indigo-600' : 'bg-gray-100'}`}>
+                    <opt.icon className={`h-4 w-4 ${role === opt.value ? 'text-white' : 'text-gray-400'}`} />
+                  </div>
+                  <p className={`text-xs font-bold ${role === opt.value ? 'text-violet-700' : 'text-gray-600'}`}>{opt.label}</p>
+                  <p className="text-[10px] text-gray-400 leading-tight">{opt.desc}</p>
                 </button>
               ))}
             </div>

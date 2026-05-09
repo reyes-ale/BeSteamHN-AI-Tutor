@@ -10,6 +10,29 @@ export interface Course {
   enrolled: number;
   image: string;
   color: string;
+  bannerUrl?: string;
+  educatorId?: string;
+  educatorName?: string;
+  modules?: CourseModule[];
+  game?: CourseGame;
+}
+
+export type CourseModuleType = 'lesson' | 'video' | 'presentation' | 'quiz' | 'game';
+
+export interface CourseModule {
+  id: string;
+  type: CourseModuleType;
+  title: { en: string; es: string };
+  description: { en: string; es: string };
+  content?: string;
+  fileName?: string;
+}
+
+export interface CourseGame {
+  title: { en: string; es: string };
+  prompt: { en: string; es: string };
+  answer: string;
+  reward: number;
 }
 
 export interface EnrolledCourse extends Course {
@@ -79,6 +102,40 @@ export const courses: Course[] = [
     enrolled: 234,
     image: '🐍',
     color: 'from-blue-500 to-cyan-500',
+    modules: [
+      {
+        id: 'python-intro',
+        type: 'lesson',
+        title: { en: 'Welcome to Python', es: 'Bienvenida a Python' },
+        description: { en: 'Set up your first Python workspace.', es: 'Prepara tu primer espacio de trabajo en Python.' },
+        content: 'Install Python, open a notebook, and run print("Hola BESTEAMHN").',
+      },
+      {
+        id: 'python-slides',
+        type: 'presentation',
+        title: { en: 'Variables deck', es: 'Presentacion de variables' },
+        description: { en: 'Slides with the core mental model.', es: 'Diapositivas con el modelo mental principal.' },
+        fileName: 'variables-python.pdf',
+      },
+      {
+        id: 'python-quiz',
+        type: 'quiz',
+        title: { en: 'Quick variable check', es: 'Chequeo rapido de variables' },
+        description: { en: 'Answer a short formative quiz.', es: 'Responde una prueba formativa corta.' },
+      },
+      {
+        id: 'python-game',
+        type: 'game',
+        title: { en: 'Syntax Sprint', es: 'Sprint de Sintaxis' },
+        description: { en: 'Complete the missing command.', es: 'Completa el comando faltante.' },
+      },
+    ],
+    game: {
+      title: { en: 'Syntax Sprint', es: 'Sprint de Sintaxis' },
+      prompt: { en: 'Which command prints text in Python?', es: 'Que comando imprime texto en Python?' },
+      answer: 'print',
+      reward: 10,
+    },
   },
   {
     id: '2',

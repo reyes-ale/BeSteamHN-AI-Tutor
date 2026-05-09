@@ -31,6 +31,7 @@ const en = {
   nav: {
     dashboard: 'Dashboard',
     courses: 'Courses',
+    educatorCourses: 'My Courses',
     myNfts: 'My NFTs',
     workshops: 'Workshops',
     aiTutor: 'AI Tutor',
@@ -185,6 +186,7 @@ const es: typeof en = {
   nav: {
     dashboard: 'Panel',
     courses: 'Cursos',
+    educatorCourses: 'Mis Cursos',
     myNfts: 'Mis NFTs',
     workshops: 'Talleres',
     aiTutor: 'Tutor IA',

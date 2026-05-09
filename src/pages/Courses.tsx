@@ -1,8 +1,10 @@
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useI18n } from '@/lib/i18n';
 import { Link } from 'react-router-dom';
-import { Search, Clock, Signal, Coins, Users, BookOpen, SlidersHorizontal } from 'lucide-react';
-import { courses } from '@/lib/mockData';
+import { Search, Clock, Signal, Coins, Users, BookOpen, SlidersHorizontal, Plus, Presentation, Gamepad2, Pencil, Trash2 } from 'lucide-react';
+import { useAuth } from '@/lib/auth';
+import { canManageCourse, deleteSharedCourse, getAllCourses, getAllCoursesAsync } from '@/lib/courseProgress';
+import type { Course } from '@/lib/mockData';
 
 type Category = 'all' | 'programming' | 'softSkills' | 'design' | 'robotics';
 type Difficulty = 'all' | 'beginner' | 'intermediate' | 'advanced';
@@ -23,9 +25,22 @@ const difficultyMeta: Record<string, { label: string; bg: string; text: string; 
 
 export default function Courses() {
   const { t, locale } = useI18n();
+  const { user } = useAuth();
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState<Category>('all');
   const [difficulty, setDifficulty] = useState<Difficulty>('all');
+  const canCreateCourses = user?.role === 'educator' || user?.role === 'admin';
+  const [allCourses, setAllCourses] = useState<Course[]>(() => getAllCourses());
+
+  useEffect(() => {
+    let mounted = true;
+    getAllCoursesAsync().then((loadedCourses) => {
+      if (mounted) setAllCourses(loadedCourses);
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const categories: { key: Category; label: string }[] = [
     { key: 'all', label: t.courses.allCategories },
@@ -43,14 +58,14 @@ export default function Courses() {
   ];
 
   const filtered = useMemo(() => {
-    return courses.filter((c) => {
+    return allCourses.filter((c) => {
       const title = locale === 'es' ? c.title.es : c.title.en;
       const matchesSearch = title.toLowerCase().includes(search.toLowerCase());
       const matchesCategory = category === 'all' || c.category === category;
       const matchesDifficulty = difficulty === 'all' || c.difficulty === difficulty;
       return matchesSearch && matchesCategory && matchesDifficulty;
     });
-  }, [search, category, difficulty, locale]);
+  }, [allCourses, search, category, difficulty, locale]);
 
   return (
     <div className="space-y-6">
@@ -60,9 +75,20 @@ export default function Courses() {
           <h1 className="text-2xl font-bold text-gray-900">{t.courses.catalog}</h1>
           <p className="mt-1 text-sm text-gray-500">{t.courses.catalogDesc}</p>
         </div>
-        <div className="flex items-center gap-1.5 rounded-xl bg-white/60 border border-white/50 px-3 py-1.5 text-xs font-medium text-gray-600 shadow-sm backdrop-blur-sm">
-          <SlidersHorizontal className="h-3.5 w-3.5 text-violet-500" />
-          <span>{filtered.length} {locale === 'es' ? 'cursos' : 'courses'}</span>
+        <div className="flex items-center gap-2">
+          {canCreateCourses && (
+            <Link
+              to="/courses/create"
+              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-500 to-indigo-600 px-4 py-2 text-xs font-bold text-white shadow-md shadow-violet-200/60 transition-all hover:scale-105 hover:opacity-90"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              {locale === 'es' ? 'Crear curso' : 'Create course'}
+            </Link>
+          )}
+          <div className="flex items-center gap-1.5 rounded-xl bg-white/60 border border-white/50 px-3 py-1.5 text-xs font-medium text-gray-600 shadow-sm backdrop-blur-sm">
+            <SlidersHorizontal className="h-3.5 w-3.5 text-violet-500" />
+            <span>{filtered.length} {locale === 'es' ? 'cursos' : 'courses'}</span>
+          </div>
         </div>
       </div>
 
@@ -132,16 +158,28 @@ export default function Courses() {
           {filtered.map((course) => {
             const diffMeta = difficultyMeta[course.difficulty];
             const diffLabel = t.courses[course.difficulty as keyof typeof t.courses] || course.difficulty;
+            const canManageThisCourse = canManageCourse(course, user);
+            const handleDelete = async () => {
+              const confirmed = window.confirm(locale === 'es' ? `Eliminar "${locale === 'es' ? course.title.es : course.title.en}"?` : `Delete "${course.title.en}"?`);
+              if (!confirmed) return;
+              await deleteSharedCourse(course);
+              setAllCourses((current) => current.filter((item) => item.id !== course.id));
+            };
+
             return (
               <div
                 key={course.id}
                 className="group glass-card rounded-2xl overflow-hidden transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl"
               >
                 {/* Cover */}
-                <div className={`relative flex h-40 items-center justify-center bg-gradient-to-br ${course.color} overflow-hidden`}>
-                  <span className="text-6xl transition-transform duration-300 group-hover:scale-110 drop-shadow-lg">
-                    {course.image}
-                  </span>
+                  <div className={`relative flex h-40 items-center justify-center bg-gradient-to-br ${course.color} overflow-hidden`}>
+                  {course.bannerUrl ? (
+                    <img src={course.bannerUrl} alt={locale === 'es' ? course.title.es : course.title.en} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                  ) : (
+                    <span className="text-6xl font-black text-white transition-transform duration-300 group-hover:scale-110 drop-shadow-lg">
+                      {course.image}
+                    </span>
+                  )}
                   {/* Progress bar placeholder */}
                   <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/20">
                     <div className="h-full w-0 bg-white/60 rounded-full" />
@@ -151,6 +189,24 @@ export default function Courses() {
                     <span className={`h-1.5 w-1.5 rounded-full ${diffMeta.dot}`} />
                     <span className={`text-[10px] font-semibold ${diffMeta.text}`}>{diffLabel}</span>
                   </div>
+                  {canManageThisCourse && (
+                    <div className="absolute left-3 top-3 flex items-center gap-1">
+                      <Link
+                        to={`/courses/${course.id}/edit`}
+                        title={locale === 'es' ? 'Editar curso' : 'Edit course'}
+                        className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/85 text-gray-700 shadow-sm transition-all hover:bg-white hover:text-violet-700"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Link>
+                      <button
+                        onClick={handleDelete}
+                        title={locale === 'es' ? 'Eliminar curso' : 'Delete course'}
+                        className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/85 text-gray-700 shadow-sm transition-all hover:bg-red-50 hover:text-red-600"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 <div className="p-4">
@@ -172,6 +228,16 @@ export default function Courses() {
                     <span className="flex items-center gap-1">
                       <Users className="h-3 w-3" /> {course.enrolled}
                     </span>
+                    {course.modules?.some((module) => module.type === 'presentation' || module.type === 'video') && (
+                      <span className="flex items-center gap-1">
+                        <Presentation className="h-3 w-3" /> {locale === 'es' ? 'contenido' : 'content'}
+                      </span>
+                    )}
+                    {course.game && (
+                      <span className="flex items-center gap-1">
+                        <Gamepad2 className="h-3 w-3" /> {locale === 'es' ? 'reto' : 'game'}
+                      </span>
+                    )}
                   </div>
 
                   {/* Footer row */}

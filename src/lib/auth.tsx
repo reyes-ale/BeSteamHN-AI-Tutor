@@ -12,7 +12,7 @@ export interface AuthUser {
   id: string;
   name: string;
   email: string;
-  role: "student" | "admin";
+  role: "student" | "educator" | "admin";
   createdAt: string;
   walletAddress?: string;
 }
@@ -24,7 +24,8 @@ interface AuthContextType {
   signUp: (
     name: string,
     email: string,
-    password: string
+    password: string,
+    role?: "student" | "educator"
   ) => Promise<{ success: boolean; error?: string }>;
   signIn: (
     email: string,
@@ -96,7 +97,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signUp = useCallback(
-    async (name: string, email: string, password: string) => {
+    async (name: string, email: string, password: string, role: "student" | "educator" = "student") => {
       try {
         const { data, error } = await supabase.auth.signUp({
           email,
@@ -104,24 +105,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           options: {
             data: {
               full_name: name,
-              role: "student",
+              role,
             },
           },
         });
 
         if (error) return { success: false, error: error.message };
 
-        // ✅ Insertar perfil automáticamente
         if (data.user) {
-          await supabase.from("profiles").insert({
-            id: data.user.id,
-            name,
-            role: "student",
-            steam_balance: 0,
-            courses_completed: 0,
-            certificates: 0,
-          });
-
           setUser(mapSupabaseUser(data.user));
         }
 
@@ -170,7 +161,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch {
       // wallet may not be connected
     }
-    // Clear the wallet adapter's stored selection so the next user starts clean
     localStorage.removeItem('walletName');
     await supabase.auth.signOut();
     setUser(null);
