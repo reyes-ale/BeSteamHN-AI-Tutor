@@ -2,7 +2,10 @@ import React, { useMemo, useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { useI18n } from '@/lib/i18n';
 import { useAuth } from '@/lib/auth';
-import { useWallet } from '@solana/wallet-adapter-react';
+import { useWallet, useConnection } from '@solana/wallet-adapter-react';
+import { Program, AnchorProvider, Idl, BN } from '@project-serum/anchor';
+import { PublicKey, SystemProgram, Transaction } from '@solana/web3.js';
+import { TOKEN_PROGRAM_ID, getAssociatedTokenAddress } from '@solana/spl-token';
 import {
   ArrowLeft,
   Bot,
@@ -41,6 +44,12 @@ import type { GameId } from '@/types/games';
 import { supabase } from '@/lib/supabase';
 import { addNotification } from '@/lib/notifications';
 
+// IMPORTAR IDL Y CONFIGURACIÓN DEL PROGRAMA
+// ⚠️ REEMPLAZA ESTAS VARIABLES CON LOS VALORES DE TU DEPLOY ⚠️
+const PROGRAM_ID = new PublicKey("Agm9NHABSZkPx2kZWwKxxnLDf1RNrFnAfBSerkvsfdnY");
+const STEAM_MINT = new PublicKey("77bZrqn3JyhXxb9GqNhbpFMbLvQhjHoEgYN6y71EDa33");
+import idl from '@/idl/idl.json';
+
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
 
@@ -49,7 +58,8 @@ export default function CourseDetail() {
   const navigate = useNavigate();
   const { t, locale } = useI18n();
   const { user } = useAuth();
-  const { publicKey } = useWallet();
+  const { publicKey, wallet } = useWallet();
+  const { connection } = useConnection();
   const course = id ? getCourseById(id) : undefined;
   const [progress, setProgress] = useState(() => (id ? getProgressForCourse(id) : null));
   const [enrolled, setEnrolled] = useState(() => !!progress && (progress.completedModules.length > 0 || progress.gameCompleted));
@@ -98,15 +108,18 @@ export default function CourseDetail() {
   const progressPct = progress ? getProgressPercent(course, progress) : 0;
   const currentModule = modules.find((module) => !progress?.completedModules.includes(module.id)) ?? modules[0];
 
+  // ============================================================
+  // FUNCIÓN PRINCIPAL: COMPLETAR CURSO EN SOLANA
+  // ============================================================
   const handleCompletion = async () => {
     if (!user || !course) return;
     setClaimingReward(true);
 
-    // Local deduplication (guards against network failures blocking the Supabase check)
+    // Prevenir doble recompensa
     const localKey = `course_done_${course.id}_${user.id}`;
     const alreadyDoneLocally = !!localStorage.getItem(localKey);
 
-    // Check if already rewarded via Supabase (authoritative when reachable)
+    // Verificar si ya existe certificado en Supabase
     const { data: existing } = await supabase
       .from('certificates')
       .select('id')
@@ -126,45 +139,107 @@ export default function CourseDetail() {
       return;
     }
 
-    // Mark locally as done so re-runs don't double-award if Supabase is offline
+    // Marcar localmente para prevenir doble click
     localStorage.setItem(localKey, '1');
 
-    // Optimistic local balance update — shown immediately even if Supabase is unreachable
+    // Optimistic local balance update
     const prevLocalBalance = parseInt(localStorage.getItem('steam_local_balance') ?? '0');
     localStorage.setItem('steam_local_balance', String(prevLocalBalance + course.steamReward));
     window.dispatchEvent(new Event('steam-balance-update'));
 
-    // Use live publicKey first, fall back to stored walletAddress
-    const walletAddr = publicKey?.toString() ?? user.walletAddress;
-
-    // Mint STEAM tokens if wallet is available
-    let mintTx: string | null = null;
+    let txSignature: string | null = null;
     let steamMinted = false;
-    if (walletAddr && course.steamReward > 0) {
+
+    // ============================================================
+    // LLAMAR AL PROGRAMA DE SOLANA (si wallet está conectada)
+    // ============================================================
+    if (publicKey && wallet) {
       try {
-        const res = await fetch(`${SUPABASE_URL}/functions/v1/mint-steam`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            apikey: SUPABASE_ANON_KEY,
-            Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-          },
-          body: JSON.stringify({ walletAddress: walletAddr, amount: course.steamReward }),
-        });
-        if (res.ok) {
-          const data = await res.json();
-          mintTx = data.signature || null;
-          steamMinted = true;
-        } else {
-          const err = await res.json().catch(() => ({}));
-          console.warn('mint-steam failed:', err);
+        // Configurar el proveedor de Anchor
+        const provider = new AnchorProvider(connection, wallet as any, {});
+        
+        // Crear instancia del programa
+        const program = new Program(idl as Idl, PROGRAM_ID, provider);
+
+        // Encontrar las PDAs (Program Derived Addresses)
+        const [studentPda] = await PublicKey.findProgramAddress(
+          [Buffer.from("student"), publicKey.toBuffer()],
+          PROGRAM_ID
+        );
+
+        const certificatesCount = progress?.completedModules.length ?? 0;
+        const [certificatePda] = await PublicKey.findProgramAddress(
+          [
+            Buffer.from("certificate"),
+            publicKey.toBuffer(),
+            new BN(certificatesCount).toArrayLike(Buffer, 'le', 8),
+          ],
+          PROGRAM_ID
+        );
+
+        const [treasuryAuthorityPda] = await PublicKey.findProgramAddress(
+          [Buffer.from("treasury")],
+          PROGRAM_ID
+        );
+
+        // Obtener cuentas de tokens
+        const userTokenAccount = await getAssociatedTokenAddress(STEAM_MINT, publicKey);
+        const treasuryTokenAccount = await getAssociatedTokenAddress(STEAM_MINT, treasuryAuthorityPda, true);
+
+        // Llamar a la función complete_course
+        const tx = await program.methods
+          .completeCourse(
+            course.id,
+            locale === 'es' ? course.title.es : course.title.en,
+            new BN(course.steamReward)
+          )
+          .accounts({
+            user: publicKey,
+            studentAccount: studentPda,
+            certificate: certificatePda,
+            treasuryTokenAccount: treasuryTokenAccount,
+            userTokenAccount: userTokenAccount,
+            steamMint: STEAM_MINT,
+            treasuryAuthority: treasuryAuthorityPda,
+            tokenProgram: TOKEN_PROGRAM_ID,
+            systemProgram: SystemProgram.programId,
+          })
+          .transaction();
+
+        txSignature = await provider.sendAndConfirm(tx);
+        steamMinted = true;
+        console.log("✅ Curso registrado en Solana:", txSignature);
+
+      } catch (error) {
+        console.error("❌ Error al llamar el programa Solana:", error);
+        // Continuamos de todas formas, guardando en Supabase
+      }
+    } else {
+      // Si no hay wallet conectada, intentamos mintear con la función serverless
+      const walletAddr = user.walletAddress;
+      if (walletAddr && course.steamReward > 0) {
+        try {
+          const res = await fetch(`${SUPABASE_URL}/functions/v1/mint-steam`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              apikey: SUPABASE_ANON_KEY,
+              Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+            },
+            body: JSON.stringify({ walletAddress: walletAddr, amount: course.steamReward }),
+          });
+          if (res.ok) {
+            const data = await res.json();
+            txSignature = data.signature || null;
+            steamMinted = true;
+          }
+        } catch (e) {
+          console.warn('mint-steam error:', e);
         }
-      } catch (e) {
-        console.warn('mint-steam error:', e);
       }
     }
 
-    // Save certificate (ignore if table missing — balance still updates)
+    // Guardar certificado en Supabase
     const { error: certError } = await supabase.from('certificates').insert({
       user_id: user.id,
       course_id: course.id,
@@ -173,32 +248,33 @@ export default function CourseDetail() {
       course_color: course.color,
       course_image: course.image,
       steam_reward: course.steamReward,
-      mint_tx: mintTx,
+      mint_tx: txSignature,
     });
+
     if (certError) console.warn('certificate insert error:', certError.message);
 
-    // Increment profile counters
-    const { data: profile, error: profileError } = await supabase
+    // Actualizar perfil del usuario en Supabase
+    const { data: profile } = await supabase
       .from('profiles')
       .select('courses_completed, certificates, steam_balance')
       .eq('id', user.id)
       .single();
-    if (profileError) console.warn('profile fetch error:', profileError.message);
+
     if (profile) {
-      const { error: updateError } = await supabase.from('profiles').update({
+      await supabase.from('profiles').update({
         courses_completed: (profile.courses_completed || 0) + 1,
         certificates: (profile.certificates || 0) + 1,
         steam_balance: (profile.steam_balance || 0) + course.steamReward,
       }).eq('id', user.id);
-      if (updateError) console.warn('profile update error:', updateError.message);
     }
 
-    // Refresh balance display (reads both on-chain and Supabase)
+    // Refrescar balance
     window.dispatchEvent(new Event('steam-balance-update'));
 
-    setRewardResult({ steamMinted, txSignature: mintTx ?? undefined });
+    setRewardResult({ steamMinted, txSignature: txSignature ?? undefined });
     setClaimingReward(false);
     setShowCelebration(true);
+    
     addNotification({
       type: steamMinted ? 'reward' : 'course',
       title: locale === 'es' ? 'Curso completado' : 'Course completed',
@@ -226,6 +302,7 @@ export default function CourseDetail() {
     setProgress(next);
     saveProgressForCourse(next);
     setEnrolled(true);
+    
     addNotification({
       type: 'progress',
       title: locale === 'es' ? 'Bloque completado' : 'Block completed',
@@ -258,6 +335,7 @@ export default function CourseDetail() {
     saveProgressForCourse(next);
     setGameMessage(locale === 'es' ? '¡Reto completado!' : 'Challenge completed!');
     setEnrolled(true);
+    
     addNotification({
       type: 'reward',
       title: locale === 'es' ? 'Reto completado' : 'Challenge completed',
@@ -432,7 +510,7 @@ export default function CourseDetail() {
                   {locale === 'es' ? 'Acuñando tu certificado…' : 'Minting your certificate…'}
                 </h2>
                 <p className="mt-2 text-sm text-gray-500">
-                  {locale === 'es' ? 'Enviando STEAM tokens y creando tu NFT' : 'Sending STEAM tokens and creating your NFT'}
+                  {locale === 'es' ? 'Enviando STEAM tokens y registrando en Solana' : 'Sending STEAM tokens and registering on Solana'}
                 </p>
               </>
             ) : (
@@ -465,14 +543,14 @@ export default function CourseDetail() {
                       {locale === 'es' ? 'NFT Certificado' : 'NFT Certificate'}
                     </p>
                     <p className="text-[10px] text-gray-400 mt-0.5">
-                      {locale === 'es' ? 'Guardado en tu galería' : 'Saved to your gallery'}
+                      {locale === 'es' ? 'Registrado en Solana' : 'Registered on Solana'}
                     </p>
                   </div>
                 </div>
 
                 {rewardResult?.txSignature && (
                   <p className="mt-3 rounded-xl bg-gray-50 px-3 py-2 font-mono text-[10px] text-gray-400 break-all">
-                    tx: {rewardResult.txSignature}
+                    tx: {rewardResult.txSignature.slice(0, 20)}...{rewardResult.txSignature.slice(-8)}
                   </p>
                 )}
 
