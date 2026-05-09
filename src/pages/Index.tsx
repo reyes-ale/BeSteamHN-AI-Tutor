@@ -1,8 +1,10 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useI18n } from '@/lib/i18n';
+import { useAuth } from '@/lib/auth';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
+import { LogIn, UserPlus } from 'lucide-react';
 import {
   GraduationCap,
   Bot,
@@ -19,6 +21,7 @@ import {
 export default function Index() {
   const { t, locale, setLocale } = useI18n();
   const { connected } = useWallet();
+  const { isAuthenticated } = useAuth();
 
   const features = [
     {
@@ -69,7 +72,7 @@ export default function Index() {
             <Globe className="h-4 w-4 text-muted-foreground" />
             {locale === 'es' ? '🇭🇳 ES' : '🇺🇸 EN'}
           </button>
-          {connected ? (
+          {isAuthenticated ? (
             <Link
               to="/dashboard"
               className="flex items-center gap-2 rounded-lg bg-gradient-accent px-4 py-2 text-sm font-semibold text-accent-foreground transition-base hover:opacity-90"
@@ -77,7 +80,22 @@ export default function Index() {
               {t.nav.dashboard} <ArrowRight className="h-4 w-4" />
             </Link>
           ) : (
-            <WalletMultiButton />
+            <div className="flex items-center gap-2">
+              <Link
+                to="/signin"
+                className="flex items-center gap-1.5 rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground transition-base hover:bg-muted"
+              >
+                <LogIn className="h-4 w-4" />
+                {locale === 'es' ? 'Ingresar' : 'Sign In'}
+              </Link>
+              <Link
+                to="/signup"
+                className="flex items-center gap-1.5 rounded-lg bg-gradient-accent px-4 py-2 text-sm font-semibold text-accent-foreground transition-base hover:opacity-90"
+              >
+                <UserPlus className="h-4 w-4" />
+                {locale === 'es' ? 'Registrarse' : 'Sign Up'}
+              </Link>
+            </div>
           )}
         </div>
       </nav>
@@ -105,7 +123,7 @@ export default function Index() {
             {t.common.mission}
           </p>
           <div className="mt-8 flex items-center justify-center gap-4">
-            {connected ? (
+            {isAuthenticated ? (
               <Link
                 to="/dashboard"
                 className="flex items-center gap-2 rounded-xl bg-secondary px-6 py-3 text-sm font-bold text-secondary-foreground shadow-glow transition-base hover:opacity-90"
@@ -114,7 +132,13 @@ export default function Index() {
                 {locale === 'es' ? 'Ir al Panel' : 'Go to Dashboard'}
               </Link>
             ) : (
-              <WalletMultiButton />
+              <Link
+                to="/signup"
+                className="flex items-center gap-2 rounded-xl bg-secondary px-6 py-3 text-sm font-bold text-secondary-foreground shadow-glow transition-base hover:opacity-90"
+              >
+                <UserPlus className="h-4 w-4" />
+                {locale === 'es' ? 'Comenzar Gratis' : 'Get Started Free'}
+              </Link>
             )}
             <Link
               to="/courses"

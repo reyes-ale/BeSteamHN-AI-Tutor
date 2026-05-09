@@ -1,5 +1,6 @@
 import React from 'react';
 import { useI18n } from '@/lib/i18n';
+import { useAuth } from '@/lib/auth';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { Link } from 'react-router-dom';
 import {
@@ -20,7 +21,8 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 export default function Dashboard() {
   const { t, locale } = useI18n();
   const { publicKey } = useWallet();
-  const studentName = 'María';
+  const { user } = useAuth();
+  const studentName = user?.name?.split(' ')[0] || 'Student';
 
   const stats = [
     {

@@ -1,6 +1,7 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { useI18n } from '@/lib/i18n';
+import { useAuth } from '@/lib/auth';
 import {
   LayoutDashboard,
   BookOpen,
@@ -10,6 +11,7 @@ import {
   Trophy,
   Shield,
   GraduationCap,
+  LogOut,
 } from 'lucide-react';
 
 const navItems = [
@@ -23,7 +25,8 @@ const navItems = [
 ];
 
 export default function Sidebar() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
+  const { user, signOut } = useAuth();
 
   return (
     <aside className="fixed left-0 top-0 z-40 flex h-screen w-64 flex-col bg-gradient-hero">
@@ -58,11 +61,26 @@ export default function Sidebar() {
         ))}
       </nav>
 
-      {/* Mission statement */}
-      <div className="border-t border-sidebar-border p-4">
-        <p className="text-[11px] leading-relaxed text-sidebar-foreground/50">
-          {t.common.mission.slice(0, 120)}...
-        </p>
+      {/* User info & sign out */}
+      <div className="border-t border-sidebar-border p-3">
+        {user && (
+          <div className="flex items-center gap-3 rounded-lg bg-sidebar-accent/30 p-2.5">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-secondary/20 text-xs font-bold text-sidebar-accent-foreground">
+              {user.name.split(' ').map((n) => n[0]).join('').slice(0, 2)}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-semibold text-sidebar-accent-foreground truncate">{user.name}</p>
+              <p className="text-[10px] text-sidebar-foreground/50 truncate">{user.email}</p>
+            </div>
+            <button
+              onClick={signOut}
+              title={locale === 'es' ? 'Cerrar Sesi\u00f3n' : 'Sign Out'}
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-sidebar-foreground/50 transition-base hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+            >
+              <LogOut className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        )}
       </div>
     </aside>
   );

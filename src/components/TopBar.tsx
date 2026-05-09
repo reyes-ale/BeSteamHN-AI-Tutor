@@ -1,12 +1,14 @@
 import React from 'react';
 import { useI18n, type Locale } from '@/lib/i18n';
+import { useAuth } from '@/lib/auth';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { useWallet } from '@solana/wallet-adapter-react';
-import { Coins, Bell, Globe } from 'lucide-react';
+import { Coins, Bell, Globe, LogOut, User } from 'lucide-react';
 
 export default function TopBar() {
   const { locale, setLocale, t } = useI18n();
   const { publicKey } = useWallet();
+  const { user, signOut } = useAuth();
 
   const toggleLocale = () => {
     setLocale(locale === 'es' ? 'en' : 'es');
@@ -53,6 +55,26 @@ export default function TopBar() {
 
         {/* Wallet */}
         <WalletMultiButton />
+
+        {/* User Menu */}
+        {user && (
+          <div className="flex items-center gap-2 border-l border-border pl-3">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
+              <User className="h-4 w-4 text-primary" />
+            </div>
+            <div className="hidden xl:block">
+              <p className="text-xs font-semibold text-foreground leading-tight">{user.name}</p>
+              <p className="text-[10px] text-muted-foreground">{user.email}</p>
+            </div>
+            <button
+              onClick={signOut}
+              title={locale === 'es' ? 'Cerrar Sesión' : 'Sign Out'}
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-base hover:bg-destructive/10 hover:text-destructive"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
+          </div>
+        )}
       </div>
     </header>
   );
