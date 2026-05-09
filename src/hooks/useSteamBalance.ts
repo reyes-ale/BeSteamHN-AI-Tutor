@@ -36,11 +36,13 @@ export function useSteamBalance() {
 
     fetch();
 
-    // Refresh balance every 30 seconds
     const interval = setInterval(fetch, 30_000);
+    // Allow any component to trigger an immediate refresh
+    window.addEventListener('steam-balance-update', fetch);
     return () => {
       cancelled = true;
       clearInterval(interval);
+      window.removeEventListener('steam-balance-update', fetch);
     };
   }, [publicKey?.toString(), connection]);
 

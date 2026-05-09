@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { useI18n } from '@/lib/i18n';
 import { useAuth } from '@/lib/auth';
+import { useWallet } from '@solana/wallet-adapter-react';
 import {
   ArrowLeft,
   Bot,
@@ -18,6 +19,9 @@ import {
   Pencil,
   Trash2,
   Users,
+  Trophy,
+  X,
+  Loader2,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
@@ -32,17 +36,25 @@ import {
   saveProgressForCourse,
 } from '@/lib/courseProgress';
 import type { CourseModule } from '@/lib/mockData';
+import { supabase } from '@/lib/supabase';
+
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
 
 export default function CourseDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { t, locale } = useI18n();
   const { user } = useAuth();
+  const { publicKey } = useWallet();
   const course = id ? getCourseById(id) : undefined;
   const [progress, setProgress] = useState(() => (id ? getProgressForCourse(id) : null));
   const [enrolled, setEnrolled] = useState(() => !!progress && (progress.completedModules.length > 0 || progress.gameCompleted));
   const [gameAnswer, setGameAnswer] = useState('');
   const [gameMessage, setGameMessage] = useState('');
+  const [showCelebration, setShowCelebration] = useState(false);
+  const [claimingReward, setClaimingReward] = useState(false);
+  const [rewardResult, setRewardResult] = useState<{ steamMinted: boolean; txSignature?: string } | null>(null);
 
   const modules = useMemo(() => {
     if (!course) return [] as CourseModule[];
@@ -83,19 +95,103 @@ export default function CourseDetail() {
   const progressPct = progress ? getProgressPercent(course, progress) : 0;
   const currentModule = modules.find((module) => !progress?.completedModules.includes(module.id)) ?? modules[0];
 
+  const handleCompletion = async () => {
+    if (!user || !course) return;
+    setClaimingReward(true);
+
+    // Check if already rewarded (avoid duplicates)
+    const { data: existing } = await supabase
+      .from('certificates')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('course_id', course.id)
+      .maybeSingle();
+
+    if (existing) {
+      setClaimingReward(false);
+      setShowCelebration(true);
+      return;
+    }
+
+    // Use live publicKey first, fall back to stored walletAddress
+    const walletAddr = publicKey?.toString() ?? user.walletAddress;
+
+    // Mint STEAM tokens if wallet is available
+    let mintTx: string | null = null;
+    let steamMinted = false;
+    if (walletAddr && course.steamReward > 0) {
+      try {
+        const res = await fetch(`${SUPABASE_URL}/functions/v1/mint-steam`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            apikey: SUPABASE_ANON_KEY,
+            Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+          },
+          body: JSON.stringify({ walletAddress: walletAddr, amount: course.steamReward }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          mintTx = data.signature || null;
+          steamMinted = true;
+          // Trigger immediate balance refresh in useSteamBalance
+          window.dispatchEvent(new Event('steam-balance-update'));
+        }
+      } catch {}
+    }
+
+    // Save certificate
+    await supabase.from('certificates').insert({
+      user_id: user.id,
+      course_id: course.id,
+      course_title_es: course.title.es,
+      course_title_en: course.title.en,
+      course_color: course.color,
+      course_image: course.image,
+      steam_reward: course.steamReward,
+      mint_tx: mintTx,
+    });
+
+    // Increment profile counters
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('courses_completed, certificates, steam_balance')
+      .eq('id', user.id)
+      .single();
+    if (profile) {
+      await supabase.from('profiles').update({
+        courses_completed: (profile.courses_completed || 0) + 1,
+        certificates: (profile.certificates || 0) + 1,
+        steam_balance: (profile.steam_balance || 0) + course.steamReward,
+      }).eq('id', user.id);
+    }
+
+    setRewardResult({ steamMinted, txSignature: mintTx ?? undefined });
+    setClaimingReward(false);
+    setShowCelebration(true);
+  };
+
   const completeModule = (moduleId: string) => {
     if (!progress || progress.completedModules.includes(moduleId)) return;
 
     const completedModules = [...progress.completedModules, moduleId];
+    const allModulesDone = completedModules.length >= totalModules;
+    const hasGame = !!course.game;
+    const isNowComplete = allModulesDone && (!hasGame || progress.gameCompleted);
+
     const next = {
       ...progress,
       completedModules,
-      completedAt: completedModules.length >= totalModules && progress.gameCompleted ? new Date().toISOString() : progress.completedAt,
+      completedAt: isNowComplete && !progress.completedAt ? new Date().toISOString() : progress.completedAt,
     };
 
     setProgress(next);
     saveProgressForCourse(next);
     setEnrolled(true);
+
+    if (isNowComplete && !progress.completedAt) {
+      handleCompletion();
+    }
   };
 
   const completeGame = () => {
@@ -106,15 +202,22 @@ export default function CourseDetail() {
       return;
     }
 
+    const allModulesDone = progress.completedModules.length >= totalModules;
+    const isNowComplete = allModulesDone;
+
     const next = {
       ...progress,
       gameCompleted: true,
-      completedAt: progress.completedModules.length >= totalModules ? new Date().toISOString() : progress.completedAt,
+      completedAt: isNowComplete && !progress.completedAt ? new Date().toISOString() : progress.completedAt,
     };
     setProgress(next);
     saveProgressForCourse(next);
-    setGameMessage(locale === 'es' ? 'Reto completado. Tu perfil ya refleja este avance.' : 'Challenge completed. Your profile now reflects this progress.');
+    setGameMessage(locale === 'es' ? '¡Reto completado!' : 'Challenge completed!');
     setEnrolled(true);
+
+    if (isNowComplete && !progress.completedAt) {
+      handleCompletion();
+    }
   };
 
   const removeCourse = async () => {
@@ -249,7 +352,7 @@ export default function CourseDetail() {
               {progress?.gameCompleted && <CheckCircle2 className="h-6 w-6 text-success" />}
             </div>
             <div className="mt-4 flex flex-wrap items-center gap-3">
-              <input value={gameAnswer} onChange={(event) => setGameAnswer(event.target.value)} disabled={progress?.gameCompleted} className="min-w-64 rounded-xl border border-amber-200 bg-white px-3.5 py-2 text-sm outline-none focus:ring-2 focus:ring-amber-300 disabled:opacity-60" placeholder={locale === 'es' ? 'Tu respuesta' : 'Your answer'} />
+              <input value={gameAnswer} onChange={(e) => setGameAnswer(e.target.value)} disabled={progress?.gameCompleted} className="min-w-64 rounded-xl border border-amber-200 bg-white px-3.5 py-2 text-sm outline-none focus:ring-2 focus:ring-amber-300 disabled:opacity-60" placeholder={locale === 'es' ? 'Tu respuesta' : 'Your answer'} />
               <button onClick={completeGame} disabled={progress?.gameCompleted} className="rounded-xl bg-amber-500 px-4 py-2 text-sm font-bold text-white transition-all hover:bg-amber-600 disabled:opacity-60">
                 {progress?.gameCompleted ? t.common.completed : locale === 'es' ? 'Resolver reto' : 'Solve challenge'}
               </button>
@@ -257,6 +360,75 @@ export default function CourseDetail() {
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* Completion / Minting overlay */}
+      {(claimingReward || showCelebration) && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="relative w-full max-w-md rounded-3xl bg-white p-8 shadow-2xl text-center animate-fade-in-up">
+            {claimingReward ? (
+              <>
+                <Loader2 className="mx-auto h-12 w-12 animate-spin text-violet-500 mb-4" />
+                <h2 className="text-lg font-bold text-gray-900">
+                  {locale === 'es' ? 'Acuñando tu certificado…' : 'Minting your certificate…'}
+                </h2>
+                <p className="mt-2 text-sm text-gray-500">
+                  {locale === 'es' ? 'Enviando STEAM tokens y creando tu NFT' : 'Sending STEAM tokens and creating your NFT'}
+                </p>
+              </>
+            ) : (
+              <>
+                <button onClick={() => setShowCelebration(false)} className="absolute top-4 right-4 flex h-8 w-8 items-center justify-center rounded-full hover:bg-gray-100 text-gray-400">
+                  <X className="h-4 w-4" />
+                </button>
+                <div className="flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-indigo-600 mx-auto mb-4 shadow-lg shadow-violet-200">
+                  <Trophy className="h-10 w-10 text-white" />
+                </div>
+                <h2 className="text-2xl font-extrabold text-gray-900">
+                  {locale === 'es' ? '¡Curso Completado!' : 'Course Completed!'}
+                </h2>
+                <p className="mt-2 text-sm text-gray-500">{title}</p>
+
+                <div className="mt-5 grid grid-cols-2 gap-3">
+                  <div className="rounded-2xl bg-amber-50 border border-amber-100 p-4">
+                    <Coins className="h-6 w-6 text-amber-500 mx-auto mb-1" />
+                    <p className="text-xl font-extrabold text-amber-600">+{course.steamReward}</p>
+                    <p className="text-xs text-amber-700 font-medium">STEAM</p>
+                    {rewardResult && !rewardResult.steamMinted && (
+                      <p className="text-[10px] text-gray-400 mt-1">
+                        {locale === 'es' ? 'Conecta tu wallet para recibir tokens' : 'Connect wallet to receive tokens'}
+                      </p>
+                    )}
+                  </div>
+                  <div className="rounded-2xl bg-pink-50 border border-pink-100 p-4">
+                    <div className={`text-3xl mx-auto mb-1 text-center`}>{course.image}</div>
+                    <p className="text-xs font-bold text-pink-700">
+                      {locale === 'es' ? 'NFT Certificado' : 'NFT Certificate'}
+                    </p>
+                    <p className="text-[10px] text-gray-400 mt-0.5">
+                      {locale === 'es' ? 'Guardado en tu galería' : 'Saved to your gallery'}
+                    </p>
+                  </div>
+                </div>
+
+                {rewardResult?.txSignature && (
+                  <p className="mt-3 rounded-xl bg-gray-50 px-3 py-2 font-mono text-[10px] text-gray-400 break-all">
+                    tx: {rewardResult.txSignature}
+                  </p>
+                )}
+
+                <div className="mt-5 flex gap-3">
+                  <button onClick={() => setShowCelebration(false)} className="flex-1 rounded-xl border border-gray-200 py-2.5 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-all">
+                    {locale === 'es' ? 'Continuar' : 'Continue'}
+                  </button>
+                  <Link to="/nfts" onClick={() => setShowCelebration(false)} className="flex-1 rounded-xl bg-gradient-to-r from-violet-500 to-indigo-600 py-2.5 text-sm font-bold text-white text-center shadow-md shadow-violet-200/60 hover:opacity-90 transition-all">
+                    {locale === 'es' ? 'Ver mi NFT' : 'View my NFT'}
+                  </Link>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );
