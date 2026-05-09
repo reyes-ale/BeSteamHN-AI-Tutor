@@ -4,6 +4,8 @@
 
 BESTEAMHN AI Tutor is a bilingual education platform built for STEM learning in Honduras. The app combines AI tutoring, course management, mini games, student progress, certificates, workshops, leaderboards, and Solana-powered STEAM rewards.
 
+This project was created for a DEV3 hackathon.
+
 The frontend is built with React, Vite, TypeScript, Tailwind CSS, Supabase, and Solana wallet tooling. The Solana program/token deployment is handled through Solana Playground.
 
 ### Main Features
@@ -175,6 +177,8 @@ supabase/
 ## Español
 
 BESTEAMHN AI Tutor es una plataforma educativa bilingüe para aprendizaje STEM en Honduras. La app combina tutoría con IA, gestión de cursos, mini juegos, progreso estudiantil, certificados, talleres, clasificaciones y recompensas STEAM impulsadas por Solana.
+
+Este proyecto fue creado para un hackathon de DEV3.
 
 El frontend está construido con React, Vite, TypeScript, Tailwind CSS, Supabase y herramientas de Solana Wallet Adapter. El despliegue del programa/token de Solana se maneja desde Solana Playground.
 
