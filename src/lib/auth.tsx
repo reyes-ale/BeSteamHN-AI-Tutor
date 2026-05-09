@@ -5,6 +5,7 @@ import React, {
   useCallback,
   useEffect,
 } from "react";
+import { useWallet } from "@solana/wallet-adapter-react";
 import { supabase } from "./supabase";
 
 export interface AuthUser {
@@ -13,6 +14,7 @@ export interface AuthUser {
   email: string;
   role: "student" | "admin";
   createdAt: string;
+  walletAddress?: string;
 }
 
 interface AuthContextType {
@@ -47,12 +49,14 @@ function mapSupabaseUser(user: any): AuthUser {
     email: user.email || "",
     role: user.user_metadata?.role || "student",
     createdAt: user.created_at || new Date().toISOString(),
+    walletAddress: user.user_metadata?.wallet_address ?? undefined,
   };
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const { disconnect } = useWallet();
 
   useEffect(() => {
     const loadSession = async () => {
@@ -161,9 +165,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signOut = useCallback(async () => {
+    try {
+      await disconnect();
+    } catch {
+      // wallet may not be connected
+    }
+    // Clear the wallet adapter's stored selection so the next user starts clean
+    localStorage.removeItem('walletName');
     await supabase.auth.signOut();
     setUser(null);
-  }, []);
+  }, [disconnect]);
 
   return (
     <AuthContext.Provider

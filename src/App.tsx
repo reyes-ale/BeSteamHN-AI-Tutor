@@ -22,6 +22,7 @@ import Leaderboard from './pages/Leaderboard';
 import Admin from './pages/Admin';
 import DashboardLayout from './components/DashboardLayout';
 import NotFound from './pages/NotFound';
+import { WalletSync } from './components/WalletSync';
 
 import '@solana/wallet-adapter-react-ui/styles.css';
 
@@ -66,6 +67,7 @@ const App = () => {
         <WalletModalProvider>
           <I18nProvider>
             <AuthProvider>
+              <WalletSync />
               <Routes>
                 <Route path="/" element={<Index />} />
                 <Route path="/signin" element={<GuestRoute><SignIn /></GuestRoute>} />
