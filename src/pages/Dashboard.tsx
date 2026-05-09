@@ -5,72 +5,121 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import { useSteamBalance } from '@/hooks/useSteamBalance';
 import { Link } from 'react-router-dom';
 import { BookOpen, Award, Coins, TrendingUp, Bot, Flame, ArrowRight, ChevronRight, Sparkles } from 'lucide-react';
-import { Progress } from '@/components/ui/progress';
-import { enrolledCourses, nftCertificates, weeklyProgress, tokenHistory } from '@/lib/mockData';
-import { getCourseModuleCount, getProgressForCourse, getProfileProgressSummary, getProgressPercent } from '@/lib/courseProgress';
-import { Area, AreaChart, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import {
+  getCourseModuleCount,
+  getProgressForCourse,
+  getProfileProgressSummary,
+  getProgressPercent,
+} from '@/lib/courseProgress';
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+
+interface AiSession {
+  title: string;
+  date: string;
+  messageCount: number;
+}
 
 export default function Dashboard() {
   const { t, locale } = useI18n();
-  const { publicKey } = useWallet();
   const { user } = useAuth();
+  const { publicKey } = useWallet();
   const studentName = user?.name?.split(' ')[0] || 'Student';
   const { balance: steamBalance } = useSteamBalance();
-  const [profileProgress, setProfileProgress] = useState(() => getProfileProgressSummary());
 
+  const [profileProgress, setProfileProgress] = useState(() => getProfileProgressSummary());
+  const [aiSessions, setAiSessions] = useState<AiSession[]>([]);
+
+  // Refresh progress when any course activity fires
   useEffect(() => {
-    const refreshProgress = () => setProfileProgress(getProfileProgressSummary());
-    window.addEventListener('besteamhn-progress-updated', refreshProgress);
-    window.addEventListener('storage', refreshProgress);
+    const refresh = () => setProfileProgress(getProfileProgressSummary());
+    window.addEventListener('besteamhn-progress-updated', refresh);
+    window.addEventListener('storage', refresh);
     return () => {
-      window.removeEventListener('besteamhn-progress-updated', refreshProgress);
-      window.removeEventListener('storage', refreshProgress);
+      window.removeEventListener('besteamhn-progress-updated', refresh);
+      window.removeEventListener('storage', refresh);
     };
   }, []);
 
-  const visibleEnrolledCourses = profileProgress.allCourses
-    .filter((course) => enrolledCourses.some((item) => item.id === course.id) || course.id.startsWith('custom-'))
-    .slice(0, 4);
+  // Load recent AI sessions from MongoDB
+  useEffect(() => {
+    if (!user) return;
+    fetch(`${SUPABASE_URL}/functions/v1/mongodb-auth/conversations?userId=${user.id}`, {
+      headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` },
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (data.conversations?.length) {
+          setAiSessions(
+            data.conversations.slice(0, 3).map((c: any) => ({
+              title: c.title || (locale === 'es' ? 'Nueva sesión' : 'New session'),
+              date: c.date || new Date().toISOString().split('T')[0],
+              messageCount: c.messages?.length || 0,
+            }))
+          );
+        }
+      })
+      .catch(() => {});
+  }, [user?.id]);
+
+  // Courses where user has started progress; fallback to first 4
+  const coursesWithProgress = profileProgress.allCourses.filter(course => {
+    const p = getProgressForCourse(course.id);
+    return p.completedModules.length > 0 || p.gameCompleted;
+  });
+  const visibleCourses = (coursesWithProgress.length > 0
+    ? coursesWithProgress
+    : profileProgress.allCourses
+  ).slice(0, 4);
+
+  // Bar chart data: one bar per course with any progress
+  const chartData = coursesWithProgress.slice(0, 6).map(course => {
+    const p = getProgressForCourse(course.id);
+    return {
+      name: (locale === 'es' ? course.title.es : course.title.en).slice(0, 14) + '…',
+      pct: getProgressPercent(course, p),
+    };
+  });
+
+  // Recent activity: completed courses as token earnings
+  const recentActivity = profileProgress.completedCourses.slice(0, 4).map(course => ({
+    label: { es: `Completaste: ${course.title.es}`, en: `Completed: ${course.title.en}` },
+    amount: course.steamReward || 0,
+  }));
 
   const stats = [
     {
       label: t.dashboard.lessonsCompleted,
-      value: `${19 + profileProgress.completedActivities}`,
+      value: `${profileProgress.completedActivities}`,
       icon: BookOpen,
       gradient: 'from-violet-400 to-indigo-500',
-      bg: 'bg-violet-50',
-      text: 'text-violet-600',
       shadow: 'shadow-violet-100',
-      trend: '+5 ' + t.dashboard.thisWeek,
+      trend: profileProgress.completedActivities > 0 ? `+${profileProgress.completedActivities}` : '',
     },
     {
       label: t.dashboard.coursesEnrolled,
-      value: `${Math.max(3, profileProgress.coursesInProgress || 3)}`,
+      value: `${profileProgress.coursesInProgress}`,
       icon: TrendingUp,
       gradient: 'from-blue-400 to-cyan-500',
-      bg: 'bg-blue-50',
-      text: 'text-blue-600',
       shadow: 'shadow-blue-100',
       trend: '',
     },
     {
       label: t.dashboard.certificatesEarned,
-      value: `${nftCertificates.length + profileProgress.completedCourses.length}`,
+      value: `${profileProgress.completedCourses.length}`,
       icon: Award,
       gradient: 'from-pink-400 to-rose-500',
-      bg: 'bg-pink-50',
-      text: 'text-pink-600',
       shadow: 'shadow-pink-100',
       trend: '',
     },
     {
-      label: t.dashboard.streak,
-      value: '12',
-      icon: Flame,
-      gradient: 'from-orange-400 to-amber-500',
-      bg: 'bg-orange-50',
-      text: 'text-orange-600',
-      shadow: 'shadow-orange-100',
+      label: 'STEAM',
+      value: `${steamBalance}`,
+      icon: Coins,
+      gradient: 'from-amber-400 to-orange-500',
+      shadow: 'shadow-amber-100',
       trend: '',
     },
   ];
@@ -103,7 +152,7 @@ export default function Dashboard() {
         </Link>
       </div>
 
-      {/* Stats Grid — Bento Row */}
+      {/* Stats Grid */}
       <div className="grid grid-cols-4 gap-4">
         {stats.map((stat) => (
           <div
@@ -128,9 +177,9 @@ export default function Dashboard() {
 
       {/* Main Bento Grid */}
       <div className="grid grid-cols-3 gap-5">
-        {/* My Courses — 2 cols */}
+        {/* Left: Courses + Chart */}
         <div className="col-span-2 space-y-5">
-          {/* Courses Card */}
+          {/* My Courses */}
           <div className="glass-card rounded-2xl overflow-hidden">
             <div className="flex items-center justify-between px-5 py-4 border-b border-white/40">
               <h2 className="text-sm font-bold text-gray-900 flex items-center gap-2">
@@ -142,14 +191,14 @@ export default function Dashboard() {
               </Link>
             </div>
             <div className="p-4 space-y-3">
-              {visibleEnrolledCourses.map((course) => {
-                const staticCourse = enrolledCourses.find((item) => item.id === course.id);
+              {visibleCourses.length === 0 ? (
+                <p className="py-6 text-center text-sm text-gray-400">
+                  {locale === 'es' ? 'Aún no has comenzado ningún curso.' : 'You haven\'t started any courses yet.'}
+                </p>
+              ) : visibleCourses.map((course) => {
                 const localProgress = getProgressForCourse(course.id);
-                const progress = Math.max(
-                  staticCourse ? Math.round((staticCourse.lessonsCompleted / staticCourse.lessons) * 100) : 0,
-                  getProgressPercent(course, localProgress),
-                );
-                const completedLessons = Math.max(staticCourse?.lessonsCompleted ?? 0, localProgress.completedModules.length);
+                const progress = getProgressPercent(course, localProgress);
+                const completedLessons = localProgress.completedModules.length;
                 const lessonCount = getCourseModuleCount(course);
                 return (
                   <div
@@ -194,34 +243,30 @@ export default function Dashboard() {
               <h2 className="text-sm font-bold text-gray-900">{t.dashboard.progressAnalytics}</h2>
             </div>
             <div className="p-4">
-              <ResponsiveContainer width="100%" height={200}>
-                <AreaChart data={weeklyProgress}>
-                  <defs>
-                    <linearGradient id="gradLessons" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.25} />
-                      <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
-                    </linearGradient>
-                    <linearGradient id="gradSteam" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.25} />
-                      <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.05)" />
-                  <XAxis dataKey="week" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: 'rgba(255,255,255,0.9)',
-                      border: '1px solid rgba(255,255,255,0.5)',
-                      borderRadius: '12px',
-                      fontSize: '12px',
-                      boxShadow: '0 4px 24px rgba(120,80,200,0.12)',
-                    }}
-                  />
-                  <Area type="monotone" dataKey="lessons" stroke="#8b5cf6" fill="url(#gradLessons)" strokeWidth={2} name={t.dashboard.lessonsCompleted} />
-                  <Area type="monotone" dataKey="steam" stroke="#f59e0b" fill="url(#gradSteam)" strokeWidth={2} name="STEAM" />
-                </AreaChart>
-              </ResponsiveContainer>
+              {chartData.length === 0 ? (
+                <div className="flex h-[200px] items-center justify-center">
+                  <p className="text-sm text-gray-400">
+                    {locale === 'es' ? 'Completa módulos para ver tu progreso aquí.' : 'Complete modules to see your progress here.'}
+                  </p>
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height={200}>
+                  <BarChart data={chartData} barSize={28}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.05)" vertical={false} />
+                    <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+                    <YAxis domain={[0, 100]} tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} unit="%" />
+                    <Tooltip
+                      formatter={(v: number) => [`${v}%`, locale === 'es' ? 'Completado' : 'Completed']}
+                      contentStyle={{ backgroundColor: 'rgba(255,255,255,0.9)', border: '1px solid rgba(255,255,255,0.5)', borderRadius: '12px', fontSize: '12px' }}
+                    />
+                    <Bar dataKey="pct" radius={[6, 6, 0, 0]}>
+                      {chartData.map((_, i) => (
+                        <Cell key={i} fill={i % 2 === 0 ? '#8b5cf6' : '#6366f1'} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
             </div>
           </div>
         </div>
@@ -242,76 +287,87 @@ export default function Dashboard() {
               <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">
                 {t.dashboard.recentActivity}
               </p>
-              <div className="space-y-2">
-                {tokenHistory.slice(0, 4).map((item, i) => (
-                  <div key={i} className="flex items-center justify-between rounded-xl bg-amber-50/80 px-3 py-2">
-                    <div>
-                      <p className="text-xs font-medium text-gray-800 leading-tight">
-                        {locale === 'es' ? item.reason.es : item.reason.en}
+              {recentActivity.length === 0 ? (
+                <p className="py-2 text-xs text-center text-gray-400">
+                  {locale === 'es' ? 'Completa cursos para ganar STEAM.' : 'Complete courses to earn STEAM.'}
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {recentActivity.map((item, i) => (
+                    <div key={i} className="flex items-center justify-between rounded-xl bg-amber-50/80 px-3 py-2">
+                      <p className="text-xs font-medium text-gray-800 leading-tight truncate max-w-[75%]">
+                        {locale === 'es' ? item.label.es : item.label.en}
                       </p>
-                      <p className="text-[10px] text-gray-400">{item.date}</p>
+                      <span className="text-xs font-bold text-emerald-600 shrink-0">+{item.amount}</span>
                     </div>
-                    <span className="text-xs font-bold text-emerald-600">+{item.amount}</span>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
-          {/* NFT Achievements */}
+          {/* Achievements */}
           <div className="glass-card rounded-2xl overflow-hidden">
             <div className="flex items-center gap-2 px-4 py-3.5 border-b border-white/40">
               <Award className="h-4 w-4 text-pink-500" />
               <h2 className="text-sm font-bold text-gray-900">{t.dashboard.myAchievements}</h2>
             </div>
             <div className="p-3 space-y-2">
-              {nftCertificates.map((cert) => (
+              {profileProgress.completedCourses.length === 0 ? (
+                <p className="py-4 text-center text-sm text-gray-400">{t.nfts.noCertificates}</p>
+              ) : profileProgress.completedCourses.slice(0, 3).map((course) => (
                 <Link
-                  key={cert.id}
+                  key={course.id}
                   to="/nfts"
                   className="flex items-center gap-3 rounded-xl bg-white/50 border border-white/60 p-3 transition-all duration-200 hover:bg-white/80 hover:shadow-sm group"
                 >
-                  <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${cert.color} text-lg shadow-sm`}>
-                    {cert.image}
+                  <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${course.color} text-lg shadow-sm`}>
+                    {course.image}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-semibold text-gray-800 truncate">
-                      {locale === 'es' ? cert.courseName.es : cert.courseName.en}
+                      {locale === 'es' ? course.title.es : course.title.en}
                     </p>
                     <p className="text-[10px] text-gray-400 mt-0.5">
-                      {cert.grade} · {cert.completionDate}
+                      {locale === 'es' ? 'Completado' : 'Completed'} · {course.steamReward} STEAM
                     </p>
                   </div>
                   <Award className="h-4 w-4 text-pink-400 shrink-0" />
                 </Link>
               ))}
-              {nftCertificates.length === 0 && (
-                <p className="py-4 text-center text-sm text-gray-400">{t.nfts.noCertificates}</p>
-              )}
             </div>
           </div>
 
           {/* AI Sessions */}
           <div className="glass-card rounded-2xl overflow-hidden">
-            <div className="flex items-center gap-2 px-4 py-3.5 border-b border-white/40">
-              <Bot className="h-4 w-4 text-violet-500" />
-              <h2 className="text-sm font-bold text-gray-900">{t.dashboard.aiSessions}</h2>
+            <div className="flex items-center justify-between px-4 py-3.5 border-b border-white/40">
+              <div className="flex items-center gap-2">
+                <Bot className="h-4 w-4 text-violet-500" />
+                <h2 className="text-sm font-bold text-gray-900">{t.dashboard.aiSessions}</h2>
+              </div>
+              <Link to="/ai-tutor" className="text-[10px] font-semibold text-violet-600 hover:text-violet-800">
+                {t.common.viewAll}
+              </Link>
             </div>
             <div className="p-3 space-y-2">
-              {[
-                { date: '2026-05-08', topic: locale === 'es' ? 'Variables en Python' : 'Python Variables', msgs: 12 },
-                { date: '2026-05-07', topic: locale === 'es' ? 'Bucles y condicionales' : 'Loops & Conditionals', msgs: 8 },
-                { date: '2026-05-06', topic: locale === 'es' ? 'Quiz de Liderazgo' : 'Leadership Quiz', msgs: 15 },
-              ].map((session, i) => (
-                <div key={i} className="flex items-center justify-between rounded-xl bg-white/50 border border-white/60 px-3 py-2.5">
-                  <div>
-                    <p className="text-xs font-semibold text-gray-800">{session.topic}</p>
+              {aiSessions.length === 0 ? (
+                <p className="py-4 text-center text-sm text-gray-400">
+                  {locale === 'es' ? 'No hay sesiones aún.' : 'No sessions yet.'}
+                </p>
+              ) : aiSessions.map((session, i) => (
+                <Link
+                  key={i}
+                  to="/ai-tutor"
+                  className="flex items-center justify-between rounded-xl bg-white/50 border border-white/60 px-3 py-2.5 hover:bg-white/80 transition-all"
+                >
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold text-gray-800 truncate">{session.title}</p>
                     <p className="text-[10px] text-gray-400 mt-0.5">{session.date}</p>
                   </div>
-                  <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-semibold text-violet-700">
-                    {session.msgs} msgs
+                  <span className="ml-2 shrink-0 rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-semibold text-violet-700">
+                    {session.messageCount} msgs
                   </span>
-                </div>
+                </Link>
               ))}
             </div>
           </div>

@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\hriverav\\\\Documents\\\\universidad\\\\HACKATON\\\\Frontend\" -Recurse -File -Include \"*.tsx\", \"*.ts\", \"*.json\")",
+      "Bash(Select-Object -ExpandProperty FullName)"
+    ]
+  }
+}
