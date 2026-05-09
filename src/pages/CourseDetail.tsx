@@ -102,7 +102,11 @@ export default function CourseDetail() {
     if (!user || !course) return;
     setClaimingReward(true);
 
-    // Check if already rewarded (avoid duplicates)
+    // Local deduplication (guards against network failures blocking the Supabase check)
+    const localKey = `course_done_${course.id}_${user.id}`;
+    const alreadyDoneLocally = !!localStorage.getItem(localKey);
+
+    // Check if already rewarded via Supabase (authoritative when reachable)
     const { data: existing } = await supabase
       .from('certificates')
       .select('id')
@@ -110,7 +114,7 @@ export default function CourseDetail() {
       .eq('course_id', course.id)
       .maybeSingle();
 
-    if (existing) {
+    if (existing || alreadyDoneLocally) {
       setClaimingReward(false);
       setShowCelebration(true);
       addNotification({
@@ -121,6 +125,14 @@ export default function CourseDetail() {
       });
       return;
     }
+
+    // Mark locally as done so re-runs don't double-award if Supabase is offline
+    localStorage.setItem(localKey, '1');
+
+    // Optimistic local balance update — shown immediately even if Supabase is unreachable
+    const prevLocalBalance = parseInt(localStorage.getItem('steam_local_balance') ?? '0');
+    localStorage.setItem('steam_local_balance', String(prevLocalBalance + course.steamReward));
+    window.dispatchEvent(new Event('steam-balance-update'));
 
     // Use live publicKey first, fall back to stored walletAddress
     const walletAddr = publicKey?.toString() ?? user.walletAddress;
@@ -143,14 +155,17 @@ export default function CourseDetail() {
           const data = await res.json();
           mintTx = data.signature || null;
           steamMinted = true;
-          // Trigger immediate balance refresh in useSteamBalance
-          window.dispatchEvent(new Event('steam-balance-update'));
+        } else {
+          const err = await res.json().catch(() => ({}));
+          console.warn('mint-steam failed:', err);
         }
-      } catch {}
+      } catch (e) {
+        console.warn('mint-steam error:', e);
+      }
     }
 
-    // Save certificate
-    await supabase.from('certificates').insert({
+    // Save certificate (ignore if table missing — balance still updates)
+    const { error: certError } = await supabase.from('certificates').insert({
       user_id: user.id,
       course_id: course.id,
       course_title_es: course.title.es,
@@ -160,20 +175,26 @@ export default function CourseDetail() {
       steam_reward: course.steamReward,
       mint_tx: mintTx,
     });
+    if (certError) console.warn('certificate insert error:', certError.message);
 
     // Increment profile counters
-    const { data: profile } = await supabase
+    const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('courses_completed, certificates, steam_balance')
       .eq('id', user.id)
       .single();
+    if (profileError) console.warn('profile fetch error:', profileError.message);
     if (profile) {
-      await supabase.from('profiles').update({
+      const { error: updateError } = await supabase.from('profiles').update({
         courses_completed: (profile.courses_completed || 0) + 1,
         certificates: (profile.certificates || 0) + 1,
         steam_balance: (profile.steam_balance || 0) + course.steamReward,
       }).eq('id', user.id);
+      if (updateError) console.warn('profile update error:', updateError.message);
     }
+
+    // Refresh balance display (reads both on-chain and Supabase)
+    window.dispatchEvent(new Event('steam-balance-update'));
 
     setRewardResult({ steamMinted, txSignature: mintTx ?? undefined });
     setClaimingReward(false);

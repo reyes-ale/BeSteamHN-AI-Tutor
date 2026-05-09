@@ -1,8 +1,8 @@
-import { Connection, Keypair, PublicKey, clusterApiUrl } from "npm:@solana/web3.js@1.98.2";
+import { Connection, Keypair, PublicKey, clusterApiUrl } from "npm:@solana/web3.js@1.87.6";
 import {
   getOrCreateAssociatedTokenAccount,
   mintTo,
-} from "npm:@solana/spl-token@0.4.13";
+} from "npm:@solana/spl-token@0.3.8";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
