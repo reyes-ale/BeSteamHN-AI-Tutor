@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useI18n } from '@/lib/i18n';
 import { useAuth } from '@/lib/auth';
 import { useWallet } from '@solana/wallet-adapter-react';
@@ -7,6 +7,7 @@ import { Link } from 'react-router-dom';
 import { BookOpen, Award, Coins, TrendingUp, Bot, Flame, ArrowRight, ChevronRight, Sparkles } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { enrolledCourses, nftCertificates, weeklyProgress, tokenHistory } from '@/lib/mockData';
+import { getCourseModuleCount, getProgressForCourse, getProfileProgressSummary, getProgressPercent } from '@/lib/courseProgress';
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 export default function Dashboard() {
@@ -15,11 +16,26 @@ export default function Dashboard() {
   const { user } = useAuth();
   const studentName = user?.name?.split(' ')[0] || 'Student';
   const { balance: steamBalance } = useSteamBalance();
+  const [profileProgress, setProfileProgress] = useState(() => getProfileProgressSummary());
+
+  useEffect(() => {
+    const refreshProgress = () => setProfileProgress(getProfileProgressSummary());
+    window.addEventListener('besteamhn-progress-updated', refreshProgress);
+    window.addEventListener('storage', refreshProgress);
+    return () => {
+      window.removeEventListener('besteamhn-progress-updated', refreshProgress);
+      window.removeEventListener('storage', refreshProgress);
+    };
+  }, []);
+
+  const visibleEnrolledCourses = profileProgress.allCourses
+    .filter((course) => enrolledCourses.some((item) => item.id === course.id) || course.id.startsWith('custom-'))
+    .slice(0, 4);
 
   const stats = [
     {
       label: t.dashboard.lessonsCompleted,
-      value: '19',
+      value: `${19 + profileProgress.completedActivities}`,
       icon: BookOpen,
       gradient: 'from-violet-400 to-indigo-500',
       bg: 'bg-violet-50',
@@ -29,7 +45,7 @@ export default function Dashboard() {
     },
     {
       label: t.dashboard.coursesEnrolled,
-      value: '3',
+      value: `${Math.max(3, profileProgress.coursesInProgress || 3)}`,
       icon: TrendingUp,
       gradient: 'from-blue-400 to-cyan-500',
       bg: 'bg-blue-50',
@@ -39,7 +55,7 @@ export default function Dashboard() {
     },
     {
       label: t.dashboard.certificatesEarned,
-      value: `${nftCertificates.length}`,
+      value: `${nftCertificates.length + profileProgress.completedCourses.length}`,
       icon: Award,
       gradient: 'from-pink-400 to-rose-500',
       bg: 'bg-pink-50',
@@ -126,8 +142,15 @@ export default function Dashboard() {
               </Link>
             </div>
             <div className="p-4 space-y-3">
-              {enrolledCourses.map((course) => {
-                const progress = Math.round((course.lessonsCompleted / course.lessons) * 100);
+              {visibleEnrolledCourses.map((course) => {
+                const staticCourse = enrolledCourses.find((item) => item.id === course.id);
+                const localProgress = getProgressForCourse(course.id);
+                const progress = Math.max(
+                  staticCourse ? Math.round((staticCourse.lessonsCompleted / staticCourse.lessons) * 100) : 0,
+                  getProgressPercent(course, localProgress),
+                );
+                const completedLessons = Math.max(staticCourse?.lessonsCompleted ?? 0, localProgress.completedModules.length);
+                const lessonCount = getCourseModuleCount(course);
                 return (
                   <div
                     key={course.id}
@@ -148,7 +171,7 @@ export default function Dashboard() {
                           />
                         </div>
                         <span className="text-xs font-semibold text-gray-500 shrink-0">
-                          {course.lessonsCompleted}/{course.lessons}
+                          {completedLessons}/{lessonCount}
                         </span>
                       </div>
                     </div>
@@ -156,7 +179,7 @@ export default function Dashboard() {
                       to={`/courses/${course.id}`}
                       className="shrink-0 rounded-xl bg-gradient-to-r from-violet-500 to-indigo-600 px-3 py-1.5 text-[11px] font-bold text-white shadow-sm shadow-violet-200/60 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
                     >
-                      {course.status === 'completed' ? t.common.completed : t.courses.continueLesson}
+                      {progress >= 100 ? t.common.completed : t.courses.continueLesson}
                     </Link>
                   </div>
                 );

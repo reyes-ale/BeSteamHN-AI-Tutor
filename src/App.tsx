@@ -14,6 +14,7 @@ import SignIn from './pages/SignIn';
 import SignUp from './pages/SignUp';
 import Dashboard from './pages/Dashboard';
 import Courses from './pages/Courses';
+import CourseBuilder from './pages/CourseBuilder';
 import CourseDetail from './pages/CourseDetail';
 import NFTGallery from './pages/NFTGallery';
 import Workshops from './pages/Workshops';
@@ -84,6 +85,8 @@ const App = () => {
                 <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
                   <Route path="/dashboard" element={<Dashboard />} />
                   <Route path="/courses" element={<Courses />} />
+                  <Route path="/courses/create" element={<CourseBuilder />} />
+                  <Route path="/courses/:id/edit" element={<CourseBuilder />} />
                   <Route path="/courses/:id" element={<CourseDetail />} />
                   <Route path="/nfts" element={<NFTGallery />} />
                   <Route path="/workshops" element={<Workshops />} />
