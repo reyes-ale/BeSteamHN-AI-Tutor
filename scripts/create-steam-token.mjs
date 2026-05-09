@@ -7,22 +7,43 @@
 
 import { Connection, Keypair, LAMPORTS_PER_SOL, clusterApiUrl } from '@solana/web3.js';
 import { createMint } from '@solana/spl-token';
+import { readFileSync, writeFileSync, existsSync } from 'fs';
 
+const KEYPAIR_FILE = 'scripts/.mint-authority.json';
 const connection = new Connection(clusterApiUrl('devnet'), 'confirmed');
 
-// Generate a new keypair — this will be the mint authority (the key that can mint tokens)
-const mintAuthority = Keypair.generate();
-console.log('\n🔑 Mint authority public key:', mintAuthority.publicKey.toString());
+// Reuse an existing keypair if one was already saved, otherwise generate a new one
+let mintAuthority;
+if (existsSync(KEYPAIR_FILE)) {
+  const saved = JSON.parse(readFileSync(KEYPAIR_FILE, 'utf8'));
+  mintAuthority = Keypair.fromSecretKey(Uint8Array.from(saved));
+  console.log('\n♻️  Reusing saved keypair');
+} else {
+  mintAuthority = Keypair.generate();
+  writeFileSync(KEYPAIR_FILE, JSON.stringify(Array.from(mintAuthority.secretKey)));
+  console.log('\n🔑 New keypair generated and saved');
+}
+console.log('Mint authority public key:', mintAuthority.publicKey.toString());
 
-// Fund the keypair with devnet SOL for transaction fees
-console.log('⏳ Requesting devnet airdrop (this can take 10-30 seconds)...');
-try {
-  const sig = await connection.requestAirdrop(mintAuthority.publicKey, 2 * LAMPORTS_PER_SOL);
-  await connection.confirmTransaction(sig, 'confirmed');
-  console.log('✅ Airdrop confirmed');
-} catch (e) {
-  console.error('❌ Airdrop failed. Try again or fund manually via https://faucet.solana.com');
-  process.exit(1);
+// Check current balance
+const currentBalance = await connection.getBalance(mintAuthority.publicKey);
+console.log('Current balance:', currentBalance / LAMPORTS_PER_SOL, 'SOL');
+
+if (currentBalance < 0.5 * LAMPORTS_PER_SOL) {
+  console.log('\n⏳ Requesting devnet airdrop...');
+  try {
+    const sig = await connection.requestAirdrop(mintAuthority.publicKey, 2 * LAMPORTS_PER_SOL);
+    await connection.confirmTransaction(sig, 'confirmed');
+    console.log('✅ Airdrop confirmed');
+  } catch (e) {
+    console.log('\n❌ Airdrop rate-limited. Fund this address manually:');
+    console.log('   👉 https://faucet.solana.com');
+    console.log('   Address:', mintAuthority.publicKey.toString());
+    console.log('\nThen re-run: node scripts/create-steam-token.mjs');
+    process.exit(1);
+  }
+} else {
+  console.log('✅ Balance sufficient, skipping airdrop');
 }
 
 // Create the STEAM token mint (0 decimals = whole tokens only)
