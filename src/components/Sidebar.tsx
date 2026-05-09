@@ -29,15 +29,15 @@ export default function Sidebar() {
   const { user, signOut } = useAuth();
 
   return (
-    <aside className="fixed left-0 top-0 z-40 flex h-screen w-64 flex-col bg-gradient-hero">
+    <aside className="fixed left-0 top-0 z-40 flex h-screen w-64 flex-col glass-strong border-r border-white/50 shadow-xl shadow-violet-100/40">
       {/* Logo */}
-      <div className="flex h-16 items-center gap-3 border-b border-sidebar-border px-5">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-secondary">
-          <GraduationCap className="h-5 w-5 text-secondary-foreground" />
+      <div className="flex h-16 items-center gap-3 border-b border-white/40 px-5">
+        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 shadow-md shadow-violet-200">
+          <GraduationCap className="h-5 w-5 text-white" />
         </div>
         <div>
-          <h1 className="text-sm font-bold text-sidebar-accent-foreground">BESTEAMHN</h1>
-          <p className="text-[10px] font-medium text-sidebar-foreground/60">AI Tutor</p>
+          <h1 className="text-sm font-bold text-gray-900 tracking-tight">BESTEAMHN</h1>
+          <p className="text-[10px] font-medium text-gray-400">AI Tutor</p>
         </div>
       </div>
 
@@ -48,34 +48,44 @@ export default function Sidebar() {
             key={item.key}
             to={item.path}
             className={({ isActive }) =>
-              `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-base ${
+              `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-base ${
                 isActive
-                  ? 'bg-sidebar-accent text-sidebar-accent-foreground shadow-theme-sm'
-                  : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground'
+                  ? 'bg-gradient-to-r from-violet-500 to-indigo-500 text-white shadow-md shadow-violet-200/60'
+                  : 'text-gray-600 hover:bg-violet-50 hover:text-violet-700'
               }`
             }
           >
-            <item.icon className="h-[18px] w-[18px] shrink-0" />
-            <span>{t.nav[item.key]}</span>
+            {({ isActive }) => (
+              <>
+                <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition-base ${
+                  isActive
+                    ? 'bg-white/20'
+                    : 'bg-violet-50 group-hover:bg-violet-100'
+                }`}>
+                  <item.icon className="h-[16px] w-[16px]" />
+                </span>
+                <span>{t.nav[item.key]}</span>
+              </>
+            )}
           </NavLink>
         ))}
       </nav>
 
       {/* User info & sign out */}
-      <div className="border-t border-sidebar-border p-3">
+      <div className="border-t border-white/40 p-3">
         {user && (
-          <div className="flex items-center gap-3 rounded-lg bg-sidebar-accent/30 p-2.5">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-secondary/20 text-xs font-bold text-sidebar-accent-foreground">
+          <div className="flex items-center gap-3 rounded-2xl bg-violet-50/80 border border-violet-100 p-2.5">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-400 to-indigo-500 text-xs font-bold text-white shadow-sm">
               {user.name.split(' ').map((n) => n[0]).join('').slice(0, 2)}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold text-sidebar-accent-foreground truncate">{user.name}</p>
-              <p className="text-[10px] text-sidebar-foreground/50 truncate">{user.email}</p>
+              <p className="text-xs font-semibold text-gray-800 truncate">{user.name}</p>
+              <p className="text-[10px] text-gray-400 truncate">{user.email}</p>
             </div>
             <button
               onClick={signOut}
-              title={locale === 'es' ? 'Cerrar Sesi\u00f3n' : 'Sign Out'}
-              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-sidebar-foreground/50 transition-base hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+              title={locale === 'es' ? 'Cerrar Sesión' : 'Sign Out'}
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-gray-400 transition-base hover:bg-red-50 hover:text-red-500"
             >
               <LogOut className="h-3.5 w-3.5" />
             </button>

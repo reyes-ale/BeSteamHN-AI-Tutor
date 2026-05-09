@@ -6,7 +6,7 @@ import AIChatFab from './AIChatFab';
 
 export default function DashboardLayout() {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gradient-app">
       <Sidebar />
       <TopBar />
       <main className="ml-64 mt-16 min-h-[calc(100vh-4rem)] p-6">

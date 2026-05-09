@@ -1,12 +1,25 @@
 import React, { useState, useMemo } from 'react';
 import { useI18n } from '@/lib/i18n';
 import { Link } from 'react-router-dom';
-import { Search, Clock, Signal, Coins, Users, BookOpen } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
+import { Search, Clock, Signal, Coins, Users, BookOpen, SlidersHorizontal } from 'lucide-react';
 import { courses } from '@/lib/mockData';
 
 type Category = 'all' | 'programming' | 'softSkills' | 'design' | 'robotics';
 type Difficulty = 'all' | 'beginner' | 'intermediate' | 'advanced';
+
+const categoryMeta: Record<string, { emoji: string; gradient: string; activeBg: string; activeText: string }> = {
+  all:         { emoji: '✨', gradient: 'from-violet-400 to-indigo-500', activeBg: 'bg-violet-500',  activeText: 'text-white' },
+  programming: { emoji: '💻', gradient: 'from-blue-400 to-indigo-500',  activeBg: 'bg-blue-500',    activeText: 'text-white' },
+  softSkills:  { emoji: '🤝', gradient: 'from-emerald-400 to-teal-500', activeBg: 'bg-emerald-500', activeText: 'text-white' },
+  design:      { emoji: '🎨', gradient: 'from-pink-400 to-rose-500',    activeBg: 'bg-pink-500',    activeText: 'text-white' },
+  robotics:    { emoji: '🤖', gradient: 'from-orange-400 to-amber-500', activeBg: 'bg-orange-500',  activeText: 'text-white' },
+};
+
+const difficultyMeta: Record<string, { label: string; bg: string; text: string; dot: string }> = {
+  beginner:     { label: '',    bg: 'bg-emerald-100', text: 'text-emerald-700', dot: 'bg-emerald-400' },
+  intermediate: { label: '',    bg: 'bg-amber-100',   text: 'text-amber-700',   dot: 'bg-amber-400'   },
+  advanced:     { label: '',    bg: 'bg-rose-100',     text: 'text-rose-700',    dot: 'bg-rose-400'    },
+};
 
 export default function Courses() {
   const { t, locale } = useI18n();
@@ -29,12 +42,6 @@ export default function Courses() {
     { key: 'advanced', label: t.courses.advanced },
   ];
 
-  const difficultyColors: Record<string, string> = {
-    beginner: 'bg-success/10 text-success',
-    intermediate: 'bg-warning/10 text-warning',
-    advanced: 'bg-destructive/10 text-destructive',
-  };
-
   const filtered = useMemo(() => {
     return courses.filter((c) => {
       const title = locale === 'es' ? c.title.es : c.title.en;
@@ -48,46 +55,62 @@ export default function Courses() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">{t.courses.catalog}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{t.courses.catalogDesc}</p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">{t.courses.catalog}</h1>
+          <p className="mt-1 text-sm text-gray-500">{t.courses.catalogDesc}</p>
+        </div>
+        <div className="flex items-center gap-1.5 rounded-xl bg-white/60 border border-white/50 px-3 py-1.5 text-xs font-medium text-gray-600 shadow-sm backdrop-blur-sm">
+          <SlidersHorizontal className="h-3.5 w-3.5 text-violet-500" />
+          <span>{filtered.length} {locale === 'es' ? 'cursos' : 'courses'}</span>
+        </div>
       </div>
 
-      {/* Filters */}
+      {/* Search + Filters */}
       <div className="flex flex-wrap items-center gap-3">
+        {/* Search */}
         <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={t.common.search}
-            className="w-full rounded-lg border border-input bg-card pl-9 pr-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-secondary/50"
+            className="w-full rounded-xl border border-white/60 bg-white/70 pl-10 pr-4 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-300 backdrop-blur-sm transition-base shadow-sm"
           />
         </div>
-        <div className="flex items-center gap-1.5 rounded-lg border border-border bg-card p-1">
-          {categories.map((cat) => (
-            <button
-              key={cat.key}
-              onClick={() => setCategory(cat.key)}
-              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-base ${
-                category === cat.key
-                  ? 'bg-primary text-primary-foreground shadow-theme-sm'
-                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-              }`}
-            >
-              {cat.label}
-            </button>
-          ))}
+
+        {/* Category pills */}
+        <div className="flex items-center gap-1.5 rounded-2xl bg-white/60 border border-white/50 p-1.5 shadow-sm backdrop-blur-sm">
+          {categories.map((cat) => {
+            const meta = categoryMeta[cat.key];
+            const isActive = category === cat.key;
+            return (
+              <button
+                key={cat.key}
+                onClick={() => setCategory(cat.key)}
+                className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold transition-all duration-200 ${
+                  isActive
+                    ? `${meta.activeBg} ${meta.activeText} shadow-md`
+                    : 'text-gray-500 hover:bg-white/80 hover:text-gray-800'
+                }`}
+              >
+                <span>{meta.emoji}</span>
+                {cat.label}
+              </button>
+            );
+          })}
         </div>
-        <div className="flex items-center gap-1.5 rounded-lg border border-border bg-card p-1">
+
+        {/* Difficulty pills */}
+        <div className="flex items-center gap-1.5 rounded-2xl bg-white/60 border border-white/50 p-1.5 shadow-sm backdrop-blur-sm">
           {difficulties.map((d) => (
             <button
               key={d.key}
               onClick={() => setDifficulty(d.key)}
-              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-base ${
+              className={`rounded-xl px-3 py-1.5 text-xs font-semibold transition-all duration-200 ${
                 difficulty === d.key
-                  ? 'bg-primary text-primary-foreground shadow-theme-sm'
-                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                  ? 'bg-gray-800 text-white shadow-md'
+                  : 'text-gray-500 hover:bg-white/80 hover:text-gray-800'
               }`}
             >
               {d.label}
@@ -98,36 +121,48 @@ export default function Courses() {
 
       {/* Course Grid */}
       {filtered.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 text-center">
-          <BookOpen className="h-12 w-12 text-muted-foreground/30 mb-3" />
-          <p className="text-sm text-muted-foreground">{t.common.noResults}</p>
+        <div className="flex flex-col items-center justify-center py-20 text-center">
+          <div className="flex h-20 w-20 items-center justify-center rounded-3xl bg-gray-100 mb-4">
+            <BookOpen className="h-10 w-10 text-gray-300" />
+          </div>
+          <p className="text-sm font-medium text-gray-500">{t.common.noResults}</p>
         </div>
       ) : (
         <div className="grid grid-cols-3 gap-5">
           {filtered.map((course) => {
+            const diffMeta = difficultyMeta[course.difficulty];
             const diffLabel = t.courses[course.difficulty as keyof typeof t.courses] || course.difficulty;
             return (
-              <Card
+              <div
                 key={course.id}
-                className="group overflow-hidden border-border bg-card shadow-theme-sm transition-base hover:shadow-theme-lg hover:border-secondary/30"
+                className="group glass-card rounded-2xl overflow-hidden transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl"
               >
                 {/* Cover */}
-                <div className={`relative flex h-36 items-center justify-center bg-gradient-to-br ${course.color}`}>
-                  <span className="text-5xl transition-base group-hover:scale-110">{course.image}</span>
-                  <div className="absolute bottom-3 right-3">
-                    <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${difficultyColors[course.difficulty]}`}>
-                      {diffLabel}
-                    </span>
+                <div className={`relative flex h-40 items-center justify-center bg-gradient-to-br ${course.color} overflow-hidden`}>
+                  <span className="text-6xl transition-transform duration-300 group-hover:scale-110 drop-shadow-lg">
+                    {course.image}
+                  </span>
+                  {/* Progress bar placeholder */}
+                  <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/20">
+                    <div className="h-full w-0 bg-white/60 rounded-full" />
+                  </div>
+                  {/* Difficulty badge */}
+                  <div className={`absolute top-3 right-3 flex items-center gap-1.5 rounded-full ${diffMeta.bg} px-2.5 py-1`}>
+                    <span className={`h-1.5 w-1.5 rounded-full ${diffMeta.dot}`} />
+                    <span className={`text-[10px] font-semibold ${diffMeta.text}`}>{diffLabel}</span>
                   </div>
                 </div>
-                <CardContent className="p-4">
-                  <h3 className="text-sm font-bold text-foreground leading-snug">
+
+                <div className="p-4">
+                  <h3 className="text-sm font-bold text-gray-900 leading-snug">
                     {locale === 'es' ? course.title.es : course.title.en}
                   </h3>
-                  <p className="mt-1.5 text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+                  <p className="mt-1.5 text-xs text-gray-500 line-clamp-2 leading-relaxed">
                     {locale === 'es' ? course.description.es : course.description.en}
                   </p>
-                  <div className="mt-3 flex items-center gap-3 text-[11px] text-muted-foreground">
+
+                  {/* Meta row */}
+                  <div className="mt-3 flex items-center gap-3 text-[11px] text-gray-400">
                     <span className="flex items-center gap-1">
                       <Clock className="h-3 w-3" /> {course.duration}
                     </span>
@@ -138,22 +173,22 @@ export default function Courses() {
                       <Users className="h-3 w-3" /> {course.enrolled}
                     </span>
                   </div>
-                  <div className="mt-3 flex items-center justify-between">
-                    <div className="flex items-center gap-1.5 rounded-full bg-gradient-steam px-2.5 py-1">
-                      <Coins className="h-3 w-3 text-steam-foreground" />
-                      <span className="text-[11px] font-bold text-steam-foreground">
-                        +{course.steamReward} STEAM
-                      </span>
+
+                  {/* Footer row */}
+                  <div className="mt-4 flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 rounded-full bg-gradient-to-r from-amber-400 to-orange-400 px-2.5 py-1 shadow-sm shadow-amber-200/60">
+                      <Coins className="h-3 w-3 text-white" />
+                      <span className="text-[11px] font-bold text-white">+{course.steamReward}</span>
                     </div>
                     <Link
                       to={`/courses/${course.id}`}
-                      className="rounded-lg bg-gradient-accent px-3.5 py-1.5 text-xs font-semibold text-accent-foreground transition-base hover:opacity-90 hover:shadow-glow"
+                      className="rounded-xl bg-gradient-to-r from-violet-500 to-indigo-600 px-4 py-1.5 text-xs font-bold text-white shadow-md shadow-violet-200/60 transition-all duration-200 hover:opacity-90 hover:scale-105"
                     >
                       {t.courses.enroll}
                     </Link>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             );
           })}
         </div>

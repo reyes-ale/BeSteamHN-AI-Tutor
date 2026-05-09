@@ -1,16 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useI18n } from '@/lib/i18n';
-import {
-  Bot,
-  Send,
-  Plus,
-  MessageSquare,
-  Lightbulb,
-  HelpCircle,
-  ClipboardCheck,
-  Sparkles,
-} from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Bot, Send, Plus, MessageSquare, Lightbulb, HelpCircle, ClipboardCheck, Sparkles } from 'lucide-react';
 import type { ChatMessage } from '@/lib/mockData';
 
 const aiResponses = [
@@ -46,9 +36,7 @@ export default function AITutor() {
       id: '1',
       title: locale === 'es' ? 'Variables en Python' : 'Python Variables',
       date: '2026-05-08',
-      messages: [
-        { id: '0', role: 'assistant', content: t.aiTutor.greeting, timestamp: new Date() },
-      ],
+      messages: [{ id: '0', role: 'assistant', content: t.aiTutor.greeting, timestamp: new Date() }],
     },
     {
       id: '2',
@@ -83,9 +71,7 @@ export default function AITutor() {
     };
 
     setSessions((prev) =>
-      prev.map((s) =>
-        s.id === activeSession ? { ...s, messages: [...s.messages, userMsg] } : s
-      )
+      prev.map((s) => s.id === activeSession ? { ...s, messages: [...s.messages, userMsg] } : s)
     );
     setInput('');
     setIsTyping(true);
@@ -99,9 +85,7 @@ export default function AITutor() {
         timestamp: new Date(),
       };
       setSessions((prev) =>
-        prev.map((s) =>
-          s.id === activeSession ? { ...s, messages: [...s.messages, aiMsg] } : s
-        )
+        prev.map((s) => s.id === activeSession ? { ...s, messages: [...s.messages, aiMsg] } : s)
       );
       setIsTyping(false);
     }, 1500);
@@ -112,9 +96,7 @@ export default function AITutor() {
       id: Date.now().toString(),
       title: locale === 'es' ? 'Nueva Sesión' : 'New Session',
       date: new Date().toISOString().split('T')[0],
-      messages: [
-        { id: '0', role: 'assistant', content: t.aiTutor.greeting, timestamp: new Date() },
-      ],
+      messages: [{ id: '0', role: 'assistant', content: t.aiTutor.greeting, timestamp: new Date() }],
     };
     setSessions((prev) => [newSession, ...prev]);
     setActiveSession(newSession.id);
@@ -122,89 +104,98 @@ export default function AITutor() {
 
   const handleQuickAction = (type: string) => {
     const prompts: Record<string, { en: string; es: string }> = {
-      hint: { en: 'Can you give me a hint about my current lesson?', es: '¿Puedes darme una pista sobre mi lección actual?' },
-      explain: { en: 'Can you explain the last concept in a simpler way?', es: '¿Puedes explicar el último concepto de forma más simple?' },
-      quiz: { en: 'Quiz me on what I\'ve learned so far!', es: '¡Hazme un quiz sobre lo que he aprendido!' },
+      hint:    { en: 'Can you give me a hint about my current lesson?',         es: '¿Puedes darme una pista sobre mi lección actual?' },
+      explain: { en: 'Can you explain the last concept in a simpler way?',       es: '¿Puedes explicar el último concepto de forma más simple?' },
+      quiz:    { en: "Quiz me on what I've learned so far!",                      es: '¡Hazme un quiz sobre lo que he aprendido!' },
     };
     setInput(locale === 'es' ? prompts[type].es : prompts[type].en);
   };
 
   return (
-    <div className="flex h-[calc(100vh-7rem)] gap-6">
+    <div className="flex h-[calc(100vh-7rem)] gap-5">
       {/* Sessions Sidebar */}
-      <div className="w-72 shrink-0 flex flex-col">
-        <Card className="flex-1 flex flex-col border-border bg-card shadow-theme-sm overflow-hidden">
-          <CardHeader className="pb-3 shrink-0">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-semibold text-foreground">
-                {t.aiTutor.sessions}
-              </CardTitle>
-              <button
-                onClick={createSession}
-                className="flex items-center gap-1 rounded-lg bg-gradient-accent px-2.5 py-1.5 text-[11px] font-semibold text-accent-foreground transition-base hover:opacity-90"
-              >
-                <Plus className="h-3 w-3" /> {t.aiTutor.newSession}
-              </button>
-            </div>
-          </CardHeader>
-          <CardContent className="flex-1 space-y-1 overflow-y-auto pb-4">
-            {sessions.map((session) => (
+      <div className="w-64 shrink-0 flex flex-col glass-card rounded-2xl overflow-hidden">
+        <div className="flex items-center justify-between px-4 py-4 border-b border-white/40">
+          <h2 className="text-sm font-bold text-gray-900 flex items-center gap-2">
+            <MessageSquare className="h-4 w-4 text-violet-500" />
+            {t.aiTutor.sessions}
+          </h2>
+          <button
+            onClick={createSession}
+            className="flex items-center gap-1 rounded-xl bg-gradient-to-r from-violet-500 to-indigo-600 px-2.5 py-1.5 text-[11px] font-bold text-white shadow-sm shadow-violet-200/60 transition-all hover:opacity-90 hover:scale-105"
+          >
+            <Plus className="h-3 w-3" /> {t.aiTutor.newSession}
+          </button>
+        </div>
+        <div className="flex-1 space-y-1.5 overflow-y-auto p-3">
+          {sessions.map((session) => {
+            const isActive = activeSession === session.id;
+            return (
               <button
                 key={session.id}
                 onClick={() => setActiveSession(session.id)}
-                className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-base ${
-                  activeSession === session.id
-                    ? 'bg-primary/5 border border-primary/10'
-                    : 'hover:bg-muted'
+                className={`flex w-full items-start gap-3 rounded-xl px-3 py-2.5 text-left transition-all duration-200 ${
+                  isActive
+                    ? 'bg-gradient-to-r from-violet-50 to-indigo-50 border border-violet-200 shadow-sm'
+                    : 'hover:bg-white/60'
                 }`}
               >
-                <MessageSquare className={`h-4 w-4 shrink-0 ${activeSession === session.id ? 'text-secondary' : 'text-muted-foreground'}`} />
+                <div className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg ${
+                  isActive ? 'bg-gradient-to-br from-violet-500 to-indigo-600' : 'bg-gray-100'
+                }`}>
+                  <MessageSquare className={`h-3 w-3 ${isActive ? 'text-white' : 'text-gray-400'}`} />
+                </div>
                 <div className="min-w-0">
-                  <p className={`text-xs font-medium truncate ${activeSession === session.id ? 'text-foreground' : 'text-muted-foreground'}`}>
+                  <p className={`text-xs font-semibold truncate ${isActive ? 'text-violet-700' : 'text-gray-600'}`}>
                     {session.title}
                   </p>
-                  <p className="text-[10px] text-muted-foreground">{session.date}</p>
+                  <p className="text-[10px] text-gray-400 mt-0.5">{session.date}</p>
                 </div>
               </button>
-            ))}
-          </CardContent>
-        </Card>
+            );
+          })}
+        </div>
       </div>
 
       {/* Chat Area */}
-      <Card className="flex-1 flex flex-col border-border bg-card shadow-theme-sm overflow-hidden">
+      <div className="flex-1 flex flex-col glass-card rounded-2xl overflow-hidden">
         {/* Chat Header */}
-        <div className="flex items-center gap-3 border-b border-border px-5 py-3 shrink-0">
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-accent">
-            <Bot className="h-5 w-5 text-accent-foreground" />
+        <div className="flex items-center gap-3 px-5 py-4 border-b border-white/40 bg-gradient-to-r from-violet-50 to-indigo-50">
+          <div className="relative">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 shadow-md shadow-violet-200">
+              <Bot className="h-5 w-5 text-white" />
+            </div>
+            <span className="absolute -bottom-0.5 -right-0.5 flex h-3 w-3 items-center justify-center rounded-full bg-emerald-400 ring-2 ring-white">
+              <span className="h-1.5 w-1.5 rounded-full bg-white" />
+            </span>
           </div>
           <div>
-            <h2 className="text-sm font-semibold text-foreground">{t.aiTutor.title}</h2>
-            <p className="text-[10px] text-muted-foreground flex items-center gap-1">
-              <Sparkles className="h-3 w-3 text-secondary" />
+            <h2 className="text-sm font-bold text-gray-900">{t.aiTutor.title}</h2>
+            <p className="text-[10px] text-violet-600 font-medium flex items-center gap-1">
+              <Sparkles className="h-3 w-3" />
               {t.aiTutor.bilingual}
             </p>
           </div>
         </div>
 
         {/* Messages */}
-        <div className="flex-1 space-y-4 overflow-y-auto px-5 py-4">
+        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
           {currentSession?.messages.map((msg) => (
             <div
               key={msg.id}
               className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
-              <div className="flex gap-2.5 max-w-[75%]">
+              <div className="flex gap-2.5 max-w-[78%]">
                 {msg.role === 'assistant' && (
-                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-secondary/10 mt-0.5">
-                    <Bot className="h-3.5 w-3.5 text-secondary" />
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-400 to-indigo-500 shadow-sm mt-0.5">
+                    <Bot className="h-4 w-4 text-white" />
                   </div>
                 )}
                 <div
-                  className={`rounded-2xl px-4 py-3 text-sm leading-relaxed ${
+                  className={`rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-sm ${
                     msg.role === 'user'
-                      ? 'bg-primary text-primary-foreground rounded-br-md animate-slide-in-right'
-                      : 'bg-muted text-foreground rounded-bl-md animate-slide-in-left'
+                      ? 'bg-gradient-to-br from-violet-500 to-indigo-600 text-white rounded-br-sm animate-slide-in-right'
+                      : 'bg-white/80 text-gray-800 rounded-bl-sm border border-white/60 backdrop-blur-sm animate-slide-in-left'
                   }`}
                 >
                   {msg.content}
@@ -212,16 +203,17 @@ export default function AITutor() {
               </div>
             </div>
           ))}
+
           {isTyping && (
-            <div className="flex gap-2.5">
-              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-secondary/10">
-                <Bot className="h-3.5 w-3.5 text-secondary" />
+            <div className="flex gap-2.5 justify-start">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-400 to-indigo-500 shadow-sm">
+                <Bot className="h-4 w-4 text-white" />
               </div>
-              <div className="rounded-2xl rounded-bl-md bg-muted px-4 py-3">
-                <div className="flex gap-1.5">
-                  <span className="h-2 w-2 rounded-full bg-muted-foreground/40 animate-bounce" style={{ animationDelay: '0ms' }} />
-                  <span className="h-2 w-2 rounded-full bg-muted-foreground/40 animate-bounce" style={{ animationDelay: '150ms' }} />
-                  <span className="h-2 w-2 rounded-full bg-muted-foreground/40 animate-bounce" style={{ animationDelay: '300ms' }} />
+              <div className="rounded-2xl rounded-bl-sm bg-white/80 border border-white/60 px-4 py-3 backdrop-blur-sm">
+                <div className="flex gap-1.5 items-center h-4">
+                  <span className="h-2 w-2 rounded-full bg-violet-400 animate-bounce" style={{ animationDelay: '0ms' }} />
+                  <span className="h-2 w-2 rounded-full bg-violet-400 animate-bounce" style={{ animationDelay: '150ms' }} />
+                  <span className="h-2 w-2 rounded-full bg-violet-400 animate-bounce" style={{ animationDelay: '300ms' }} />
                 </div>
               </div>
             </div>
@@ -229,46 +221,42 @@ export default function AITutor() {
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Quick Actions */}
-        <div className="flex gap-2 border-t border-border px-5 py-2.5 shrink-0">
-          <button
-            onClick={() => handleQuickAction('hint')}
-            className="flex items-center gap-1.5 rounded-full bg-muted px-3 py-1.5 text-[11px] font-medium text-muted-foreground transition-base hover:bg-secondary/10 hover:text-secondary"
-          >
-            <Lightbulb className="h-3 w-3" /> {t.aiTutor.hint}
-          </button>
-          <button
-            onClick={() => handleQuickAction('explain')}
-            className="flex items-center gap-1.5 rounded-full bg-muted px-3 py-1.5 text-[11px] font-medium text-muted-foreground transition-base hover:bg-secondary/10 hover:text-secondary"
-          >
-            <HelpCircle className="h-3 w-3" /> {t.aiTutor.explain}
-          </button>
-          <button
-            onClick={() => handleQuickAction('quiz')}
-            className="flex items-center gap-1.5 rounded-full bg-muted px-3 py-1.5 text-[11px] font-medium text-muted-foreground transition-base hover:bg-secondary/10 hover:text-secondary"
-          >
-            <ClipboardCheck className="h-3 w-3" /> {t.aiTutor.quiz}
-          </button>
+        {/* Quick Action Chips */}
+        <div className="flex gap-2 px-5 py-2.5 border-t border-white/40 bg-white/30 flex-wrap">
+          {[
+            { key: 'hint', icon: Lightbulb, label: t.aiTutor.hint, color: 'bg-amber-100 text-amber-700 hover:bg-amber-200' },
+            { key: 'explain', icon: HelpCircle, label: t.aiTutor.explain, color: 'bg-blue-100 text-blue-700 hover:bg-blue-200' },
+            { key: 'quiz', icon: ClipboardCheck, label: t.aiTutor.quiz, color: 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200' },
+          ].map((chip) => (
+            <button
+              key={chip.key}
+              onClick={() => handleQuickAction(chip.key)}
+              className={`flex items-center gap-1.5 rounded-full ${chip.color} px-3 py-1.5 text-[11px] font-semibold transition-all duration-200 hover:scale-105`}
+            >
+              <chip.icon className="h-3 w-3" />
+              {chip.label}
+            </button>
+          ))}
         </div>
 
-        {/* Input */}
-        <div className="flex items-center gap-3 border-t border-border px-5 py-3 shrink-0">
+        {/* Input Area */}
+        <div className="flex items-center gap-3 px-5 py-3.5 border-t border-white/40 bg-white/30">
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
             placeholder={t.aiTutor.placeholder}
-            className="flex-1 rounded-xl border border-input bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-secondary/50"
+            className="flex-1 rounded-xl border border-white/60 bg-white/70 px-4 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-300 backdrop-blur-sm transition-base"
           />
           <button
             onClick={sendMessage}
             disabled={!input.trim()}
-            className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-accent text-accent-foreground transition-base hover:opacity-90 disabled:opacity-40"
+            className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 text-white shadow-md shadow-violet-200/60 transition-all duration-200 hover:opacity-90 hover:scale-105 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <Send className="h-4 w-4" />
           </button>
         </div>
-      </Card>
+      </div>
     </div>
   );
 }

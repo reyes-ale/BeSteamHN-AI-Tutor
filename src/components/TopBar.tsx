@@ -15,40 +15,40 @@ export default function TopBar() {
   };
 
   return (
-    <header className="fixed left-64 right-0 top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-card/80 px-6 backdrop-blur-md">
+    <header className="fixed left-64 right-0 top-0 z-30 flex h-16 items-center justify-between border-b border-white/40 glass px-6">
       {/* Left: Page context */}
       <div className="flex items-center gap-3">
         {publicKey && (
-          <div className="flex items-center gap-2 rounded-lg bg-muted px-3 py-1.5">
-            <div className="h-2 w-2 rounded-full bg-success animate-pulse" />
-            <span className="text-xs font-medium text-muted-foreground">Devnet</span>
+          <div className="flex items-center gap-2 rounded-xl bg-emerald-50 border border-emerald-200 px-3 py-1.5">
+            <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-xs font-medium text-emerald-700">Devnet</span>
           </div>
         )}
       </div>
 
       {/* Right: Actions */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2.5">
         {/* STEAM Balance */}
-        <div className="flex items-center gap-2 rounded-lg bg-gradient-steam px-3 py-1.5">
-          <Coins className="h-4 w-4 text-steam-foreground" />
-          <span className="text-sm font-bold text-steam-foreground">350</span>
-          <span className="text-xs font-medium text-steam-foreground/80">{t.common.steamTokens}</span>
+        <div className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-400 to-orange-400 px-3 py-1.5 shadow-md shadow-amber-200/60">
+          <Coins className="h-4 w-4 text-white" />
+          <span className="text-sm font-bold text-white">350</span>
+          <span className="text-xs font-medium text-white/80">{t.common.steamTokens}</span>
         </div>
 
         {/* Language Switcher */}
         <button
           onClick={toggleLocale}
-          className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-medium text-foreground transition-base hover:bg-muted"
+          className="flex items-center gap-1.5 rounded-xl border border-white/50 bg-white/60 px-3 py-1.5 text-sm font-medium text-gray-700 transition-base hover:bg-white/80 backdrop-blur-sm"
           title={locale === 'es' ? 'Switch to English' : 'Cambiar a Español'}
         >
-          <Globe className="h-4 w-4 text-muted-foreground" />
+          <Globe className="h-4 w-4 text-violet-400" />
           <span>{locale === 'es' ? '🇭🇳 ES' : '🇺🇸 EN'}</span>
         </button>
 
         {/* Notifications */}
-        <button className="relative flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground transition-base hover:bg-muted hover:text-foreground">
+        <button className="relative flex h-9 w-9 items-center justify-center rounded-xl border border-white/50 bg-white/60 text-gray-500 transition-base hover:bg-white/80 backdrop-blur-sm">
           <Bell className="h-4 w-4" />
-          <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground">
+          <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[10px] font-bold text-white">
             3
           </span>
         </button>
@@ -58,18 +58,18 @@ export default function TopBar() {
 
         {/* User Menu */}
         {user && (
-          <div className="flex items-center gap-2 border-l border-border pl-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
-              <User className="h-4 w-4 text-primary" />
+          <div className="flex items-center gap-2 border-l border-white/40 pl-2.5">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-violet-400 to-indigo-500 shadow-sm">
+              <User className="h-4 w-4 text-white" />
             </div>
             <div className="hidden xl:block">
-              <p className="text-xs font-semibold text-foreground leading-tight">{user.name}</p>
-              <p className="text-[10px] text-muted-foreground">{user.email}</p>
+              <p className="text-xs font-semibold text-gray-800 leading-tight">{user.name}</p>
+              <p className="text-[10px] text-gray-400">{user.email}</p>
             </div>
             <button
               onClick={signOut}
               title={locale === 'es' ? 'Cerrar Sesión' : 'Sign Out'}
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-base hover:bg-destructive/10 hover:text-destructive"
+              className="flex h-8 w-8 items-center justify-center rounded-xl text-gray-400 transition-base hover:bg-red-50 hover:text-red-500"
             >
               <LogOut className="h-4 w-4" />
             </button>

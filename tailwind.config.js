@@ -79,6 +79,16 @@ export default {
 					DEFAULT: 'hsl(var(--steam-gold))',
 					foreground: 'hsl(var(--steam-gold-foreground))',
 				},
+				pastel: {
+					purple: '#c4b5fd',
+					blue:   '#bae6fd',
+					pink:   '#fbcfe8',
+					mint:   '#a7f3d0',
+					gold:   '#fde68a',
+					lavender: '#ede9fe',
+					sky:    '#e0f2fe',
+					rose:   '#ffe4e6',
+				},
 			},
 			borderRadius: {
 				lg: 'var(--radius)',
