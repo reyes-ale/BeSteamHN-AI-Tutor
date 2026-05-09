@@ -8,6 +8,7 @@ import { WalletModalProvider } from '@solana/wallet-adapter-react-ui';
 import { clusterApiUrl } from '@solana/web3.js';
 import { I18nProvider } from '@/lib/i18n';
 import { AuthProvider, useAuth } from '@/lib/auth';
+import { XPProvider } from '@/hooks/useXPStore';
 
 import Index from './pages/Index';
 import SignIn from './pages/SignIn';
@@ -87,26 +88,28 @@ const App = () => {
         <WalletModalProvider>
           <I18nProvider>
             <AuthProvider>
-              <WalletSync />
-              <Routes>
-                <Route path="/" element={<Index />} />
-                <Route path="/signin" element={<GuestRoute><SignIn /></GuestRoute>} />
-                <Route path="/signup" element={<GuestRoute><SignUp /></GuestRoute>} />
-                <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
-                  <Route path="/dashboard" element={<Dashboard />} />
-                  <Route path="/courses" element={<Courses />} />
-                  <Route path="/educator/courses" element={<EducatorRoute><EducatorCourses /></EducatorRoute>} />
-                  <Route path="/courses/create" element={<CourseBuilder />} />
-                  <Route path="/courses/:id/edit" element={<CourseBuilder />} />
-                  <Route path="/courses/:id" element={<CourseDetail />} />
-                  <Route path="/nfts" element={<NFTGallery />} />
-                  <Route path="/workshops" element={<Workshops />} />
-                  <Route path="/ai-tutor" element={<AITutor />} />
-                  <Route path="/leaderboard" element={<Leaderboard />} />
-                  <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
-                </Route>
-                <Route path="*" element={<NotFound />} />
-              </Routes>
+              <XPProvider>
+                <WalletSync />
+                <Routes>
+                  <Route path="/" element={<Index />} />
+                  <Route path="/signin" element={<GuestRoute><SignIn /></GuestRoute>} />
+                  <Route path="/signup" element={<GuestRoute><SignUp /></GuestRoute>} />
+                  <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
+                    <Route path="/dashboard" element={<Dashboard />} />
+                    <Route path="/courses" element={<Courses />} />
+                    <Route path="/educator/courses" element={<EducatorRoute><EducatorCourses /></EducatorRoute>} />
+                    <Route path="/courses/create" element={<CourseBuilder />} />
+                    <Route path="/courses/:id/edit" element={<CourseBuilder />} />
+                    <Route path="/courses/:id" element={<CourseDetail />} />
+                    <Route path="/nfts" element={<NFTGallery />} />
+                    <Route path="/workshops" element={<Workshops />} />
+                    <Route path="/ai-tutor" element={<AITutor />} />
+                    <Route path="/leaderboard" element={<Leaderboard />} />
+                    <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
+                  </Route>
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </XPProvider>
               <Toaster />
             </AuthProvider>
           </I18nProvider>

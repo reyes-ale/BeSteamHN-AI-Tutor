@@ -1,10 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useI18n } from '@/lib/i18n';
 import { Link } from 'react-router-dom';
-import { Search, Clock, Signal, Coins, Users, BookOpen, SlidersHorizontal, Plus, Presentation, Gamepad2, Pencil, Trash2 } from 'lucide-react';
+import { Search, Clock, Signal, Coins, Users, BookOpen, SlidersHorizontal, Plus, Presentation, Gamepad2, Pencil, Trash2, X } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import { canManageCourse, deleteSharedCourse, getAllCourses, getAllCoursesAsync } from '@/lib/courseProgress';
 import type { Course } from '@/lib/mockData';
+import GameCard from '@/components/games/GameCard';
+import { GAME_CONFIGS, type GameId } from '@/types/games';
+import { addNotification } from '@/lib/notifications';
 
 type Category = 'all' | 'programming' | 'softSkills' | 'design' | 'robotics';
 type Difficulty = 'all' | 'beginner' | 'intermediate' | 'advanced';
@@ -29,8 +32,10 @@ export default function Courses() {
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState<Category>('all');
   const [difficulty, setDifficulty] = useState<Difficulty>('all');
+  const [showGameMenu, setShowGameMenu] = useState(false);
   const canCreateCourses = user?.role === 'educator' || user?.role === 'admin';
   const [allCourses, setAllCourses] = useState<Course[]>(() => getAllCourses());
+  const availableGames = Object.keys(GAME_CONFIGS) as GameId[];
 
   useEffect(() => {
     let mounted = true;
@@ -76,6 +81,13 @@ export default function Courses() {
           <p className="mt-1 text-sm text-gray-500">{t.courses.catalogDesc}</p>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowGameMenu(true)}
+            className="flex items-center gap-2 rounded-xl border border-violet-100 bg-white/70 px-4 py-2 text-xs font-bold text-violet-700 shadow-sm backdrop-blur-sm transition-all hover:scale-105 hover:bg-white"
+          >
+            <Gamepad2 className="h-3.5 w-3.5" />
+            {locale === 'es' ? 'Juegos' : 'Games'}
+          </button>
           {canCreateCourses && (
             <Link
               to="/courses/create"
@@ -91,6 +103,43 @@ export default function Courses() {
           </div>
         </div>
       </div>
+
+      {showGameMenu && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/40 p-4 backdrop-blur-sm"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) setShowGameMenu(false);
+          }}
+        >
+          <div className="max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-3xl border border-white/60 bg-white/95 p-5 shadow-2xl">
+            <div className="mb-5 flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-black text-gray-900">
+                  {locale === 'es' ? 'Elige un juego' : 'Choose a game'}
+                </h2>
+                <p className="mt-1 text-sm text-gray-500">
+                  {locale === 'es'
+                    ? 'Puedes jugar libremente cualquier mini juego mientras exploras los cursos.'
+                    : 'Play any mini game freely while browsing courses.'}
+                </p>
+              </div>
+              <button
+                onClick={() => setShowGameMenu(false)}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gray-100 text-gray-500 transition-colors hover:bg-red-50 hover:text-red-500"
+                title={locale === 'es' ? 'Cerrar' : 'Close'}
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              {availableGames.map((gameId) => (
+                <GameCard key={gameId} gameId={gameId} variant="card" />
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Search + Filters */}
       <div className="flex flex-wrap items-center gap-3">
@@ -163,6 +212,12 @@ export default function Courses() {
               const confirmed = window.confirm(locale === 'es' ? `Eliminar "${locale === 'es' ? course.title.es : course.title.en}"?` : `Delete "${course.title.en}"?`);
               if (!confirmed) return;
               await deleteSharedCourse(course);
+              addNotification({
+                type: 'course',
+                title: locale === 'es' ? 'Curso eliminado' : 'Course deleted',
+                description: locale === 'es' ? course.title.es : course.title.en,
+                href: '/courses',
+              });
               setAllCourses((current) => current.filter((item) => item.id !== course.id));
             };
 

@@ -4,6 +4,8 @@ import { useI18n } from '@/lib/i18n';
 import { useAuth } from '@/lib/auth';
 import { canManageCourse, getCourseById, saveSharedCourse } from '@/lib/courseProgress';
 import type { Course, CourseModule, CourseModuleType } from '@/lib/mockData';
+import { GAME_CONFIGS, type GameId } from '@/types/games';
+import { addNotification } from '@/lib/notifications';
 import { ArrowLeft, ChevronDown, ChevronUp, FileVideo, Gamepad2, Plus, Presentation, Save, Trash2 } from 'lucide-react';
 
 const moduleTypes: { type: CourseModuleType; labelEs: string; labelEn: string }[] = [
@@ -63,6 +65,7 @@ export default function CourseBuilder() {
     return locale === 'es' ? 'Escribe la palabra clave correcta para completar el reto.' : 'Type the correct keyword to complete the challenge.';
   });
   const [gameAnswer, setGameAnswer] = useState(() => existingCourse?.game?.answer ?? 'steam');
+  const [assignedGameId, setAssignedGameId] = useState<GameId>(() => existingCourse?.game?.gameId ?? 'quiz-battle');
 
   const canCreate = user?.role === 'educator' || user?.role === 'admin';
   const canEditExisting = !existingCourse || canManageCourse(existingCourse, user);
@@ -121,14 +124,23 @@ export default function CourseBuilder() {
       educatorName: existingCourse?.educatorName ?? user?.name,
       modules,
       game: {
-        title: { en: 'Course Challenge', es: 'Reto del Curso' },
+        title: { en: GAME_CONFIGS[assignedGameId].name, es: GAME_CONFIGS[assignedGameId].name },
         prompt: { en: gamePrompt, es: gamePrompt },
         answer: gameAnswer.trim().toLowerCase(),
-        reward: 10,
+        reward: GAME_CONFIGS[assignedGameId].xpReward,
+        gameId: assignedGameId,
       },
     };
 
     await saveSharedCourse(course);
+    addNotification({
+      type: 'course',
+      title: existingCourse
+        ? locale === 'es' ? 'Curso actualizado' : 'Course updated'
+        : locale === 'es' ? 'Curso creado' : 'Course created',
+      description: courseTitle,
+      href: `/courses/${course.id}`,
+    });
     navigate(`/courses/${course.id}`);
   };
 
@@ -288,10 +300,20 @@ export default function CourseBuilder() {
 
           <div className="rounded-2xl border border-amber-200 bg-amber-50/80 p-4">
             <h2 className="flex items-center gap-2 text-sm font-bold text-amber-900"><Gamepad2 className="h-4 w-4" />{locale === 'es' ? 'Juego del curso' : 'Course game'}</h2>
-            <div className="mt-3 grid grid-cols-2 gap-3">
+            <div className="mt-3 grid grid-cols-3 gap-3">
+              <select value={assignedGameId} onChange={(event) => setAssignedGameId(event.target.value as GameId)} className="rounded-xl border border-amber-100 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-amber-300">
+                {Object.values(GAME_CONFIGS).map((game) => (
+                  <option key={game.id} value={game.id}>
+                    {game.emoji} {game.name}
+                  </option>
+                ))}
+              </select>
               <input value={gamePrompt} onChange={(event) => setGamePrompt(event.target.value)} className="rounded-xl border border-amber-100 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-amber-300" />
               <input value={gameAnswer} onChange={(event) => setGameAnswer(event.target.value)} className="rounded-xl border border-amber-100 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-amber-300" placeholder={locale === 'es' ? 'Respuesta correcta' : 'Correct answer'} />
             </div>
+            <p className="mt-2 text-xs font-semibold text-amber-700">
+              {GAME_CONFIGS[assignedGameId].description} · +{GAME_CONFIGS[assignedGameId].xpReward} XP
+            </p>
           </div>
         </section>
       </div>

@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
+import GameCard from '@/components/games/GameCard';
 import {
   canManageCourse,
   getCompletedModuleCount,
@@ -36,7 +37,9 @@ import {
   saveProgressForCourse,
 } from '@/lib/courseProgress';
 import type { CourseModule } from '@/lib/mockData';
+import type { GameId } from '@/types/games';
 import { supabase } from '@/lib/supabase';
+import { addNotification } from '@/lib/notifications';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
@@ -110,6 +113,12 @@ export default function CourseDetail() {
     if (existing) {
       setClaimingReward(false);
       setShowCelebration(true);
+      addNotification({
+        type: 'course',
+        title: locale === 'es' ? 'Curso completado' : 'Course completed',
+        description: title,
+        href: `/courses/${course.id}`,
+      });
       return;
     }
 
@@ -169,6 +178,14 @@ export default function CourseDetail() {
     setRewardResult({ steamMinted, txSignature: mintTx ?? undefined });
     setClaimingReward(false);
     setShowCelebration(true);
+    addNotification({
+      type: steamMinted ? 'reward' : 'course',
+      title: locale === 'es' ? 'Curso completado' : 'Course completed',
+      description: steamMinted
+        ? `${title} · +${course.steamReward} STEAM`
+        : title,
+      href: `/courses/${course.id}`,
+    });
   };
 
   const completeModule = (moduleId: string) => {
@@ -188,6 +205,12 @@ export default function CourseDetail() {
     setProgress(next);
     saveProgressForCourse(next);
     setEnrolled(true);
+    addNotification({
+      type: 'progress',
+      title: locale === 'es' ? 'Bloque completado' : 'Block completed',
+      description: locale === 'es' ? currentModule.title.es : currentModule.title.en,
+      href: `/courses/${course.id}`,
+    });
 
     if (isNowComplete && !progress.completedAt) {
       handleCompletion();
@@ -214,6 +237,12 @@ export default function CourseDetail() {
     saveProgressForCourse(next);
     setGameMessage(locale === 'es' ? '¡Reto completado!' : 'Challenge completed!');
     setEnrolled(true);
+    addNotification({
+      type: 'reward',
+      title: locale === 'es' ? 'Reto completado' : 'Challenge completed',
+      description: `${locale === 'es' ? course.game.title.es : course.game.title.en} · +${course.game.reward} XP`,
+      href: `/courses/${course.id}`,
+    });
 
     if (isNowComplete && !progress.completedAt) {
       handleCompletion();
@@ -225,6 +254,12 @@ export default function CourseDetail() {
     if (!confirmed) return;
 
     await deleteSharedCourse(course);
+    addNotification({
+      type: 'course',
+      title: locale === 'es' ? 'Curso eliminado' : 'Course deleted',
+      description: title,
+      href: '/courses',
+    });
     navigate('/courses');
   };
 
@@ -357,6 +392,9 @@ export default function CourseDetail() {
                 {progress?.gameCompleted ? t.common.completed : locale === 'es' ? 'Resolver reto' : 'Solve challenge'}
               </button>
               {gameMessage && <span className="text-xs font-semibold text-amber-800">{gameMessage}</span>}
+            </div>
+            <div className="mt-5">
+              <GameCard gameId={(course.game.gameId ?? 'quiz-battle') as GameId} variant="card" />
             </div>
           </CardContent>
         </Card>
