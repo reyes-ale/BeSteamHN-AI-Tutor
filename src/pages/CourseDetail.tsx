@@ -22,6 +22,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import {
+  canManageCourse,
   getCompletedModuleCount,
   getCourseById,
   getCourseModuleCount,
@@ -75,7 +76,7 @@ export default function CourseDetail() {
   const title = locale === 'es' ? course.title.es : course.title.en;
   const desc = locale === 'es' ? course.description.es : course.description.en;
   const diffLabel = t.courses[course.difficulty as keyof typeof t.courses] || course.difficulty;
-  const canEdit = user?.role === 'educator' || user?.role === 'admin';
+  const canEdit = canManageCourse(course, user);
 
   const totalModules = getCourseModuleCount(course);
   const completedCount = progress ? getCompletedModuleCount(course, progress) : 0;
@@ -120,7 +121,7 @@ export default function CourseDetail() {
     const confirmed = window.confirm(locale === 'es' ? `Eliminar "${title}"?` : `Delete "${title}"?`);
     if (!confirmed) return;
 
-    await deleteSharedCourse(course.id);
+    await deleteSharedCourse(course);
     navigate('/courses');
   };
 

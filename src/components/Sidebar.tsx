@@ -12,11 +12,13 @@ import {
   Shield,
   GraduationCap,
   LogOut,
+  ClipboardList,
 } from 'lucide-react';
 
 const navItems = [
   { key: 'dashboard' as const, path: '/dashboard', icon: LayoutDashboard },
   { key: 'courses' as const, path: '/courses', icon: BookOpen },
+  { key: 'educatorCourses' as const, path: '/educator/courses', icon: ClipboardList },
   { key: 'myNfts' as const, path: '/nfts', icon: Award },
   { key: 'workshops' as const, path: '/workshops', icon: Calendar },
   { key: 'aiTutor' as const, path: '/ai-tutor', icon: Bot },
@@ -43,7 +45,11 @@ export default function Sidebar() {
 
       {/* Navigation */}
       <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
-        {navItems.filter(item => item.key !== 'admin' || user?.role === 'admin').map((item) => (
+        {navItems.filter(item => {
+          if (item.key === 'admin') return user?.role === 'admin';
+          if (item.key === 'educatorCourses') return user?.role === 'educator' || user?.role === 'admin';
+          return true;
+        }).map((item) => (
           <NavLink
             key={item.key}
             to={item.path}

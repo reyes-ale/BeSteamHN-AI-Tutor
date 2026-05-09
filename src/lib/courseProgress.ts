@@ -13,6 +13,12 @@ export interface CourseProgress {
   completedAt?: string;
 }
 
+export interface CourseActor {
+  id: string;
+  name?: string;
+  role: 'student' | 'educator' | 'admin';
+}
+
 function readJson<T>(key: string, fallback: T): T {
   if (typeof window === 'undefined') return fallback;
 
@@ -49,11 +55,18 @@ export function saveCustomCourse(course: Course) {
   }
 }
 
+export function canManageCourse(course: Course, user: CourseActor | null | undefined) {
+  if (!user) return false;
+  if (user.role === 'admin') return true;
+  return user.role === 'educator' && course.educatorId === user.id;
+}
+
 export async function saveSharedCourse(course: Course) {
   saveCustomCourse(course);
 
   const { error } = await supabase.from(SHARED_COURSES_TABLE).upsert({
     id: course.id,
+    educator_id: course.educatorId ?? null,
     course,
     deleted: false,
     updated_at: new Date().toISOString(),
@@ -72,11 +85,12 @@ export function deleteCourse(courseId: string) {
   writeJson(DELETED_COURSES_KEY, Array.from(new Set([courseId, ...deletedCourseIds])));
 }
 
-export async function deleteSharedCourse(courseId: string) {
-  deleteCourse(courseId);
+export async function deleteSharedCourse(course: Course) {
+  deleteCourse(course.id);
 
   const { error } = await supabase.from(SHARED_COURSES_TABLE).upsert({
-    id: courseId,
+    id: course.id,
+    educator_id: course.educatorId ?? null,
     course: null,
     deleted: true,
     updated_at: new Date().toISOString(),
@@ -101,7 +115,7 @@ export async function getAllCoursesAsync(): Promise<Course[]> {
 
   const { data, error } = await supabase
     .from(SHARED_COURSES_TABLE)
-    .select('id, course, deleted')
+    .select('id, educator_id, course, deleted')
     .order('updated_at', { ascending: false });
 
   if (error || !data) {
@@ -112,7 +126,10 @@ export async function getAllCoursesAsync(): Promise<Course[]> {
   const deletedIds = new Set(data.filter((row: any) => row.deleted).map((row: any) => row.id as string));
   const sharedCourses = data
     .filter((row: any) => !row.deleted && row.course)
-    .map((row: any) => row.course as Course);
+    .map((row: any) => ({
+      ...(row.course as Course),
+      educatorId: (row.course as Course).educatorId ?? row.educator_id ?? undefined,
+    }));
   const sharedIds = new Set(sharedCourses.map((course) => course.id));
   const merged = [
     ...sharedCourses,

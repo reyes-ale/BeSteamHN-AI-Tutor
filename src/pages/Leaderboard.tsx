@@ -75,7 +75,7 @@ export default function Leaderboard() {
         <TabsContent value="allTime" className="mt-4 space-y-6">
           {/* Podium */}
           {!loading && top3.length > 0 && (
-            <div className="grid grid-cols-3 items-end gap-4 pb-4">
+            <div className="mx-auto grid w-full max-w-xl grid-cols-3 items-end justify-items-center gap-4 pb-4">
               {/* 2nd Place */}
               {top3[1] && <div className="flex flex-col items-center">
                 <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted text-lg font-bold text-foreground border-2 border-border">

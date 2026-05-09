@@ -3,7 +3,7 @@ import { useI18n } from '@/lib/i18n';
 import { Link } from 'react-router-dom';
 import { Search, Clock, Signal, Coins, Users, BookOpen, SlidersHorizontal, Plus, Presentation, Gamepad2, Pencil, Trash2 } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
-import { deleteSharedCourse, getAllCourses, getAllCoursesAsync } from '@/lib/courseProgress';
+import { canManageCourse, deleteSharedCourse, getAllCourses, getAllCoursesAsync } from '@/lib/courseProgress';
 import type { Course } from '@/lib/mockData';
 
 type Category = 'all' | 'programming' | 'softSkills' | 'design' | 'robotics';
@@ -158,10 +158,11 @@ export default function Courses() {
           {filtered.map((course) => {
             const diffMeta = difficultyMeta[course.difficulty];
             const diffLabel = t.courses[course.difficulty as keyof typeof t.courses] || course.difficulty;
+            const canManageThisCourse = canManageCourse(course, user);
             const handleDelete = async () => {
               const confirmed = window.confirm(locale === 'es' ? `Eliminar "${locale === 'es' ? course.title.es : course.title.en}"?` : `Delete "${course.title.en}"?`);
               if (!confirmed) return;
-              await deleteSharedCourse(course.id);
+              await deleteSharedCourse(course);
               setAllCourses((current) => current.filter((item) => item.id !== course.id));
             };
 
@@ -188,7 +189,7 @@ export default function Courses() {
                     <span className={`h-1.5 w-1.5 rounded-full ${diffMeta.dot}`} />
                     <span className={`text-[10px] font-semibold ${diffMeta.text}`}>{diffLabel}</span>
                   </div>
-                  {canCreateCourses && (
+                  {canManageThisCourse && (
                     <div className="absolute left-3 top-3 flex items-center gap-1">
                       <Link
                         to={`/courses/${course.id}/edit`}

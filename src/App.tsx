@@ -16,6 +16,7 @@ import Dashboard from './pages/Dashboard';
 import Courses from './pages/Courses';
 import CourseBuilder from './pages/CourseBuilder';
 import CourseDetail from './pages/CourseDetail';
+import EducatorCourses from './pages/EducatorCourses';
 import NFTGallery from './pages/NFTGallery';
 import Workshops from './pages/Workshops';
 import AITutor from './pages/AITutor';
@@ -66,6 +67,15 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function EducatorRoute({ children }: { children: React.ReactNode }) {
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) return null;
+  if (!user || (user.role !== 'educator' && user.role !== 'admin')) return <Navigate to="/dashboard" replace />;
+
+  return <>{children}</>;
+}
+
 const App = () => {
   const network = WalletAdapterNetwork.Devnet;
   const endpoint = useMemo(() => clusterApiUrl(network), [network]);
@@ -85,6 +95,7 @@ const App = () => {
                 <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
                   <Route path="/dashboard" element={<Dashboard />} />
                   <Route path="/courses" element={<Courses />} />
+                  <Route path="/educator/courses" element={<EducatorRoute><EducatorCourses /></EducatorRoute>} />
                   <Route path="/courses/create" element={<CourseBuilder />} />
                   <Route path="/courses/:id/edit" element={<CourseBuilder />} />
                   <Route path="/courses/:id" element={<CourseDetail />} />

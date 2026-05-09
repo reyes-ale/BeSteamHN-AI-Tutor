@@ -11,6 +11,8 @@ export interface Course {
   image: string;
   color: string;
   bannerUrl?: string;
+  educatorId?: string;
+  educatorName?: string;
   modules?: CourseModule[];
   game?: CourseGame;
 }

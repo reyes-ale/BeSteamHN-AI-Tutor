@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { useI18n } from '@/lib/i18n';
 import { useAuth } from '@/lib/auth';
-import { getCourseById, saveSharedCourse } from '@/lib/courseProgress';
+import { canManageCourse, getCourseById, saveSharedCourse } from '@/lib/courseProgress';
 import type { Course, CourseModule, CourseModuleType } from '@/lib/mockData';
 import { ArrowLeft, ChevronDown, ChevronUp, FileVideo, Gamepad2, Plus, Presentation, Save, Trash2 } from 'lucide-react';
 
@@ -65,9 +65,10 @@ export default function CourseBuilder() {
   const [gameAnswer, setGameAnswer] = useState(() => existingCourse?.game?.answer ?? 'steam');
 
   const canCreate = user?.role === 'educator' || user?.role === 'admin';
+  const canEditExisting = !existingCourse || canManageCourse(existingCourse, user);
   const totalLessons = useMemo(() => Math.max(1, modules.length), [modules.length]);
 
-  if (!canCreate) return <Navigate to="/courses" replace />;
+  if (!canCreate || !canEditExisting) return <Navigate to="/courses" replace />;
 
   const updateModule = (moduleId: string, patch: Partial<CourseModule>) => {
     setModules((current) => current.map((module) => (module.id === moduleId ? { ...module, ...patch } : module)));
@@ -116,6 +117,8 @@ export default function CourseBuilder() {
       image: bannerLabel.trim() || 'BT',
       color: bannerColor,
       bannerUrl: bannerUrl || undefined,
+      educatorId: existingCourse?.educatorId ?? user?.id,
+      educatorName: existingCourse?.educatorName ?? user?.name,
       modules,
       game: {
         title: { en: 'Course Challenge', es: 'Reto del Curso' },
