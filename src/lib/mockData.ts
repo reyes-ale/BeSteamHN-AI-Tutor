@@ -33,6 +33,7 @@ export interface CourseGame {
   prompt: { en: string; es: string };
   answer: string;
   reward: number;
+  gameId?: 'sky-jump' | 'color-dash' | 'quiz-battle' | 'memory-match' | 'drag-drop' | 'speed-challenge';
 }
 
 export interface EnrolledCourse extends Course {

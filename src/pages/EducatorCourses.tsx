@@ -5,6 +5,7 @@ import { useAuth } from '@/lib/auth';
 import { canManageCourse, deleteSharedCourse, getAllCourses, getAllCoursesAsync } from '@/lib/courseProgress';
 import type { Course } from '@/lib/mockData';
 import { BarChart3, BookOpen, Coins, Eye, Pencil, Plus, Trash2, Users } from 'lucide-react';
+import { addNotification } from '@/lib/notifications';
 
 export default function EducatorCourses() {
   const { locale, t } = useI18n();
@@ -63,6 +64,12 @@ export default function EducatorCourses() {
     if (!confirmed) return;
 
     await deleteSharedCourse(course);
+    addNotification({
+      type: 'course',
+      title: locale === 'es' ? 'Curso eliminado' : 'Course deleted',
+      description: title,
+      href: '/educator/courses',
+    });
     setCourses((current) => current.filter((item) => item.id !== course.id));
   };
 
