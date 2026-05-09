@@ -10,6 +10,7 @@ async function fetchLeaderboard(): Promise<LeaderboardEntry[]> {
   const { data, error } = await supabase
     .from('profiles')
     .select('id, name, steam_balance, courses_completed, certificates')
+    .eq('role', 'student')
     .order('steam_balance', { ascending: false })
     .limit(10);
 

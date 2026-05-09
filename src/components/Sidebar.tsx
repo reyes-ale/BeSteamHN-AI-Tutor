@@ -43,7 +43,7 @@ export default function Sidebar() {
 
       {/* Navigation */}
       <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
-        {navItems.map((item) => (
+        {navItems.filter(item => item.key !== 'admin' || user?.role === 'admin').map((item) => (
           <NavLink
             key={item.key}
             to={item.path}

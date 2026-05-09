@@ -56,6 +56,15 @@ function GuestRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function AdminRoute({ children }: { children: React.ReactNode }) {
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) return null;
+  if (!user || user.role !== 'admin') return <Navigate to="/dashboard" replace />;
+
+  return <>{children}</>;
+}
+
 const App = () => {
   const network = WalletAdapterNetwork.Devnet;
   const endpoint = useMemo(() => clusterApiUrl(network), [network]);
@@ -80,7 +89,7 @@ const App = () => {
                   <Route path="/workshops" element={<Workshops />} />
                   <Route path="/ai-tutor" element={<AITutor />} />
                   <Route path="/leaderboard" element={<Leaderboard />} />
-                  <Route path="/admin" element={<Admin />} />
+                  <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
                 </Route>
                 <Route path="*" element={<NotFound />} />
               </Routes>
