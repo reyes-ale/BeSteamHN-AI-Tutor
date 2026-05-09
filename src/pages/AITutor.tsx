@@ -1,7 +1,8 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useI18n } from '@/lib/i18n';
 import { Bot, Send, Plus, MessageSquare, Lightbulb, HelpCircle, ClipboardCheck, Sparkles } from 'lucide-react';
 import type { ChatMessage } from '@/lib/mockData';
+import { useAuth } from '@/lib/auth';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
@@ -26,28 +27,82 @@ interface Session {
 
 export default function AITutor() {
   const { t, locale } = useI18n();
-  const [sessions, setSessions] = useState<Session[]>([
-    {
-      id: '1',
-      title: locale === 'es' ? 'Variables en Python' : 'Python Variables',
-      date: '2026-05-08',
-      messages: [{ id: '0', role: 'assistant', content: t.aiTutor.greeting, timestamp: new Date() }],
-    },
-    {
-      id: '2',
-      title: locale === 'es' ? 'Bucles y Funciones' : 'Loops & Functions',
-      date: '2026-05-07',
-      messages: [
-        { id: '0', role: 'assistant', content: t.aiTutor.greeting, timestamp: new Date() },
-        { id: '1', role: 'user', content: locale === 'es' ? '¿Cómo funcionan los bucles for?' : 'How do for loops work?', timestamp: new Date() },
-        { id: '2', role: 'assistant', content: fallbackResponses[0][locale], timestamp: new Date() },
-      ],
-    },
-  ]);
-  const [activeSession, setActiveSession] = useState('1');
+  const { user } = useAuth();
+  const [sessions, setSessions] = useState<Session[]>([]);
+  const [activeSession, setActiveSession] = useState('');
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [loadingConversations, setLoadingConversations] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Load conversations from MongoDB on mount
+  useEffect(() => {
+    if (!user) return;
+    fetch(`${SUPABASE_URL}/functions/v1/mongodb-auth/conversations?userId=${user.id}`, {
+      headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` },
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (data.conversations?.length > 0) {
+          const loaded: Session[] = data.conversations.map((c: any) => ({
+            id: c.sessionId,
+            title: c.title,
+            date: c.date,
+            messages: c.messages.map((m: any, i: number) => ({
+              id: String(i),
+              role: m.role,
+              content: m.content,
+              timestamp: new Date(m.timestamp),
+            })),
+          }));
+          setSessions(loaded);
+          setActiveSession(loaded[0].id);
+        } else {
+          startNewSession();
+        }
+      })
+      .catch(() => startNewSession())
+      .finally(() => setLoadingConversations(false));
+  }, [user?.id]);
+
+  function startNewSession() {
+    const id = Date.now().toString();
+    const session: Session = {
+      id,
+      title: locale === 'es' ? 'Nueva Sesión' : 'New Session',
+      date: new Date().toISOString().split('T')[0],
+      messages: [{ id: '0', role: 'assistant', content: t.aiTutor.greeting, timestamp: new Date() }],
+    };
+    setSessions([session]);
+    setActiveSession(id);
+  }
+
+  const saveConversation = useCallback(async (session: Session) => {
+    if (!user) return;
+    try {
+      await fetch(`${SUPABASE_URL}/functions/v1/mongodb-auth/conversations`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify({
+          userId: user.id,
+          sessionId: session.id,
+          title: session.title,
+          date: session.date,
+          messages: session.messages.map(m => ({
+            role: m.role,
+            content: m.content,
+            timestamp: m.timestamp,
+          })),
+        }),
+      });
+    } catch {
+      // Silently fail — conversation stays in local state
+    }
+  }, [user]);
 
   const currentSession = sessions.find((s) => s.id === activeSession);
 
@@ -66,9 +121,15 @@ export default function AITutor() {
     };
 
     const updatedMessages = [...currentSession.messages, userMsg];
-    setSessions((prev) =>
-    prev.map((s) => s.id === activeSession ? { ...s, messages: [...s.messages, userMsg] } : s)
 
+    // Auto-title on the first user message
+    const isFirstUserMessage = currentSession.messages.every(m => m.role !== 'user');
+    const sessionTitle = isFirstUserMessage
+      ? input.trim().slice(0, 42) + (input.trim().length > 42 ? '…' : '')
+      : currentSession.title;
+
+    setSessions((prev) =>
+      prev.map((s) => s.id === activeSession ? { ...s, title: sessionTitle, messages: updatedMessages } : s)
     );
     setInput('');
     setIsTyping(true);
@@ -96,9 +157,11 @@ export default function AITutor() {
         content: data.content,
         timestamp: new Date(),
       };
+      const finalMessages = [...updatedMessages, aiMsg];
       setSessions((prev) =>
-        prev.map((s) => (s.id === activeSession ? { ...s, messages: [...s.messages, aiMsg] } : s))
+        prev.map((s) => (s.id === activeSession ? { ...s, messages: finalMessages } : s))
       );
+      saveConversation({ ...currentSession, title: sessionTitle, messages: finalMessages });
     } catch {
       const resp = fallbackResponses[Math.floor(Math.random() * fallbackResponses.length)];
       const aiMsg: ChatMessage = {
@@ -107,10 +170,11 @@ export default function AITutor() {
         content: locale === 'es' ? resp.es : resp.en,
         timestamp: new Date(),
       };
+      const finalMessages = [...updatedMessages, aiMsg];
       setSessions((prev) =>
-      prev.map((s) => s.id === activeSession ? { ...s, messages: [...s.messages, aiMsg] } : s)
-
+        prev.map((s) => s.id === activeSession ? { ...s, title: sessionTitle, messages: finalMessages } : s)
       );
+      saveConversation({ ...currentSession, title: sessionTitle, messages: finalMessages });
     } finally {
       setIsTyping(false);
     }
@@ -135,6 +199,17 @@ export default function AITutor() {
     };
     setInput(locale === 'es' ? prompts[type].es : prompts[type].en);
   };
+
+  if (loadingConversations) {
+    return (
+      <div className="flex h-[calc(100vh-7rem)] items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-violet-500 border-t-transparent" />
+          <p className="text-sm text-gray-400">{locale === 'es' ? 'Cargando conversaciones...' : 'Loading conversations...'}</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-[calc(100vh-7rem)] gap-5">

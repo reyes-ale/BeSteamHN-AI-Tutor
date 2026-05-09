@@ -8,8 +8,11 @@
 import { Connection, Keypair, LAMPORTS_PER_SOL, clusterApiUrl } from '@solana/web3.js';
 import { createMint } from '@solana/spl-token';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 
-const KEYPAIR_FILE = 'scripts/.mint-authority.json';
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const KEYPAIR_FILE = join(__dirname, '.mint-authority.json');
 const connection = new Connection(clusterApiUrl('devnet'), 'confirmed');
 
 // Reuse an existing keypair if one was already saved, otherwise generate a new one

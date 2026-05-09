@@ -4,21 +4,31 @@ import { Trophy, Coins, BookOpen, Award } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { LeaderboardEntry } from '@/lib/mockData';
-
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+import { supabase } from '@/lib/supabase';
 
 async function fetchLeaderboard(): Promise<LeaderboardEntry[]> {
-  const res = await fetch(`${SUPABASE_URL}/functions/v1/mongodb-auth/leaderboard?limit=10`, {
-    headers: {
-      apikey: SUPABASE_ANON_KEY,
-      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-    },
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const data = await res.json();
-  if (!Array.isArray(data.leaderboard)) throw new Error('Invalid response');
-  return data.leaderboard;
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, name, steam_balance, courses_completed, certificates')
+    .order('steam_balance', { ascending: false })
+    .limit(10);
+
+  if (error) throw new Error(error.message);
+  if (!data) return [];
+
+  return data.map((row: any, i: number) => ({
+    rank: i + 1,
+    name: row.name || 'Unknown',
+    avatar: (row.name as string || 'U')
+      .split(' ')
+      .map((n: string) => n[0])
+      .join('')
+      .slice(0, 2)
+      .toUpperCase(),
+    steam: row.steam_balance || 0,
+    coursesCompleted: row.courses_completed || 0,
+    certificates: row.certificates || 0,
+  }));
 }
 
 function SkeletonRow() {

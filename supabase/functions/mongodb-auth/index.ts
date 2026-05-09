@@ -1,5 +1,17 @@
-import { MongoClient } from "npm:mongodb@6.8.0";
-import { encode as base64Encode } from "https://deno.land/std@0.220.0/encoding/base64.ts";
+import { MongoClient, ObjectId } from "npm:mongodb@6.8.0";
+
+// Module-level connection — reused across requests (warm instances keep this alive)
+let _db: ReturnType<MongoClient["db"]> | null = null;
+
+async function getDb() {
+  if (_db) return _db;
+  const uri = Deno.env.get("MONGODB_URI");
+  if (!uri) throw new Error("MongoDB not configured");
+  const client = new MongoClient(uri);
+  await client.connect();
+  _db = client.db("besteamhn");
+  return _db;
+}
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -92,23 +104,15 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const mongoUri = Deno.env.get("MONGODB_URI");
     const jwtSecret = Deno.env.get("AUTH_JWT_SECRET") || "besteamhn-default-secret-change-me";
-
-    if (!mongoUri) {
-      return respond({ error: "MongoDB not configured" }, 500);
-    }
-
     const url = new URL(req.url);
     const path = url.pathname.split("/").pop();
 
-    const client = new MongoClient(mongoUri);
-    await client.connect();
-    const db = client.db("besteamhn");
+    const db = await getDb();
     const users = db.collection("users");
+    const conversations = db.collection("conversations");
 
-    try {
-      // SIGN UP
+    // SIGN UP
       if (path === "signup" && req.method === "POST") {
         const { email, password, name, role } = await req.json();
 
@@ -208,7 +212,6 @@ Deno.serve(async (req: Request) => {
           return respond({ error: "Invalid or expired token" }, 401);
         }
 
-        const { ObjectId } = await import("npm:mongodb@6.8.0");
         const user = await users.findOne({ _id: new ObjectId(payload.userId as string) });
         if (!user) {
           return respond({ error: "User not found" }, 404);
@@ -223,6 +226,45 @@ Deno.serve(async (req: Request) => {
             steamBalance: user.steamBalance || 0,
           },
         });
+      }
+
+      // GET CONVERSATIONS — load all sessions for a user
+      if (path === "conversations" && req.method === "GET") {
+        const userId = url.searchParams.get("userId");
+        if (!userId) return respond({ error: "userId required" }, 400);
+
+        const docs = await conversations
+          .find({ userId }, { projection: { _id: 0 } })
+          .sort({ updatedAt: -1 })
+          .toArray();
+
+        return respond({ conversations: docs });
+      }
+
+      // SAVE CONVERSATION — upsert a session by sessionId
+      if (path === "conversations" && req.method === "POST") {
+        const { userId, sessionId, title, date, messages } = await req.json();
+
+        if (!userId || !sessionId) {
+          return respond({ error: "userId and sessionId are required" }, 400);
+        }
+
+        await conversations.updateOne(
+          { userId, sessionId },
+          { $set: { userId, sessionId, title, date, messages, updatedAt: new Date() } },
+          { upsert: true }
+        );
+
+        return respond({ success: true });
+      }
+
+      // DELETE CONVERSATION
+      if (path === "conversations" && req.method === "DELETE") {
+        const { userId, sessionId } = await req.json();
+        if (!userId || !sessionId) return respond({ error: "userId and sessionId required" }, 400);
+
+        await conversations.deleteOne({ userId, sessionId });
+        return respond({ success: true });
       }
 
       // LEADERBOARD
@@ -253,9 +295,6 @@ Deno.serve(async (req: Request) => {
       }
 
       return respond({ error: "Not found" }, 404);
-    } finally {
-      await client.close();
-    }
   } catch (err) {
     console.error("Auth error:", err);
     return respond({ error: "Internal server error" }, 500);
