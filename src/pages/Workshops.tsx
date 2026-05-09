@@ -12,11 +12,15 @@ import {
   Plus,
   X,
   Loader2,
+  Trash2,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/lib/supabase';
 import { workshops as mockWorkshops } from '@/lib/mockData';
+import { addNotification } from '@/lib/notifications';
 
 interface DisplayWorkshop {
   id: string;
@@ -31,6 +35,7 @@ interface DisplayWorkshop {
   capacity: number;
   reserved: number;
   isReserved: boolean;
+  created_by?: string | null;
   isMock?: boolean;
 }
 
@@ -56,6 +61,9 @@ export default function Workshops() {
   const [showCreate, setShowCreate] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [registrantsCache, setRegistrantsCache] = useState<Record<string, { user_id: string; name: string }[]>>({});
+  const [loadingRegistrants, setLoadingRegistrants] = useState<string | null>(null);
 
   const canManage = user?.role === 'educator' || user?.role === 'admin';
 
@@ -113,6 +121,40 @@ export default function Workshops() {
     setLoading(false);
   }
 
+  const fetchRegistrants = async (workshopId: string) => {
+    if (registrantsCache[workshopId]) {
+      // Toggle collapse if already loaded
+      setExpandedId(prev => prev === workshopId ? null : workshopId);
+      return;
+    }
+    setLoadingRegistrants(workshopId);
+    setExpandedId(workshopId);
+
+    // Step 1: get user_ids for this workshop
+    const { data: regs } = await supabase
+      .from('workshop_registrations')
+      .select('user_id')
+      .eq('workshop_id', workshopId);
+
+    const userIds = (regs ?? []).map(r => r.user_id);
+
+    if (userIds.length === 0) {
+      setRegistrantsCache(prev => ({ ...prev, [workshopId]: [] }));
+      setLoadingRegistrants(null);
+      return;
+    }
+
+    // Step 2: get names from profiles
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, name')
+      .in('id', userIds);
+
+    const list = (profiles ?? []).map(p => ({ user_id: p.id, name: p.name ?? p.id }));
+    setRegistrantsCache(prev => ({ ...prev, [workshopId]: list }));
+    setLoadingRegistrants(null);
+  };
+
   const toggleReservation = async (ws: DisplayWorkshop) => {
     if (!user) return;
 
@@ -127,6 +169,7 @@ export default function Workshops() {
     }
 
     setToggling(ws.id);
+    const title = locale === 'es' ? ws.title_es : ws.title_en;
 
     if (ws.isReserved) {
       const { error } = await supabase
@@ -138,6 +181,14 @@ export default function Workshops() {
         setWorkshops(prev => prev.map(w =>
           w.id === ws.id ? { ...w, isReserved: false, reserved: w.reserved - 1 } : w
         ));
+        // Invalidate registrants cache so the educator's list refreshes
+        setRegistrantsCache(prev => { const next = { ...prev }; delete next[ws.id]; return next; });
+        addNotification({
+          type: 'course',
+          title: locale === 'es' ? 'Reservación cancelada' : 'Reservation cancelled',
+          description: title,
+          href: '/workshops',
+        });
       }
     } else {
       const { error } = await supabase
@@ -147,6 +198,13 @@ export default function Workshops() {
         setWorkshops(prev => prev.map(w =>
           w.id === ws.id ? { ...w, isReserved: true, reserved: w.reserved + 1 } : w
         ));
+        setRegistrantsCache(prev => { const next = { ...prev }; delete next[ws.id]; return next; });
+        addNotification({
+          type: 'reward',
+          title: locale === 'es' ? 'Taller reservado' : 'Workshop reserved',
+          description: title,
+          href: '/workshops',
+        });
       } else {
         console.warn('reserve error:', error.message);
       }
@@ -177,7 +235,31 @@ export default function Workshops() {
     setSaving(false);
   };
 
+  const deleteWorkshop = async (ws: DisplayWorkshop) => {
+    if (!user || !canManage) return;
+    const title = locale === 'es' ? ws.title_es : ws.title_en;
+    const confirmed = window.confirm(
+      locale === 'es' ? `¿Eliminar "${title}"? Se cancelarán todas las reservaciones.` : `Delete "${title}"? All reservations will be cancelled.`
+    );
+    if (!confirmed) return;
+    const { error } = await supabase.from('workshops').delete().eq('id', ws.id);
+    if (!error) {
+      setWorkshops(prev => prev.filter(w => w.id !== ws.id));
+      setRegistrantsCache(prev => { const next = { ...prev }; delete next[ws.id]; return next; });
+      if (expandedId === ws.id) setExpandedId(null);
+      addNotification({
+        type: 'course',
+        title: locale === 'es' ? 'Taller eliminado' : 'Workshop deleted',
+        description: title,
+        href: '/workshops',
+      });
+    } else {
+      console.warn('delete error:', error.message);
+    }
+  };
+
   const myReservations = workshops.filter(w => w.isReserved);
+  const myWorkshops = workshops.filter(w => w.created_by === user?.id);
 
   return (
     <div className="space-y-6">
@@ -213,6 +295,11 @@ export default function Workshops() {
             <TabsTrigger value="mine" className="text-sm">
               {t.workshops.myReservations} ({myReservations.length})
             </TabsTrigger>
+            {canManage && !usesMock && (
+              <TabsTrigger value="created" className="text-sm">
+                {locale === 'es' ? 'Mis talleres' : 'My workshops'} ({myWorkshops.length})
+              </TabsTrigger>
+            )}
           </TabsList>
 
           <TabsContent value="upcoming" className="mt-4">
@@ -226,6 +313,7 @@ export default function Workshops() {
             ) : (
               <div className="grid grid-cols-2 gap-5">
                 {workshops.map((ws) => {
+                  const isOwner = !ws.isMock && ws.created_by === user?.id;
                   const isFull = ws.reserved >= ws.capacity && !ws.isReserved;
                   const spotsLeft = ws.capacity - ws.reserved;
                   const isToggling = toggling === ws.id;
@@ -293,20 +381,26 @@ export default function Workshops() {
                           )}
                         </div>
 
-                        <button
-                          onClick={() => toggleReservation(ws)}
-                          disabled={isFull || isToggling}
-                          className={`w-full rounded-lg py-2 text-xs font-semibold transition-base flex items-center justify-center gap-1.5 ${
-                            ws.isReserved
-                              ? 'border border-destructive/20 bg-destructive/5 text-destructive hover:bg-destructive/10'
-                              : isFull
-                              ? 'cursor-not-allowed bg-muted text-muted-foreground'
-                              : 'bg-gradient-accent text-accent-foreground hover:opacity-90 hover:shadow-glow'
-                          }`}
-                        >
-                          {isToggling && <Loader2 className="h-3 w-3 animate-spin" />}
-                          {ws.isReserved ? t.workshops.cancelReservation : t.workshops.reserve}
-                        </button>
+                        {isOwner ? (
+                          <div className="w-full rounded-lg py-2 text-xs font-semibold text-center bg-muted text-muted-foreground cursor-default">
+                            {locale === 'es' ? 'Tu taller' : 'Your workshop'}
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => toggleReservation(ws)}
+                            disabled={isFull || isToggling}
+                            className={`w-full rounded-lg py-2 text-xs font-semibold transition-base flex items-center justify-center gap-1.5 ${
+                              ws.isReserved
+                                ? 'border border-destructive/20 bg-destructive/5 text-destructive hover:bg-destructive/10'
+                                : isFull
+                                ? 'cursor-not-allowed bg-muted text-muted-foreground'
+                                : 'bg-gradient-accent text-accent-foreground hover:opacity-90 hover:shadow-glow'
+                            }`}
+                          >
+                            {isToggling && <Loader2 className="h-3 w-3 animate-spin" />}
+                            {ws.isReserved ? t.workshops.cancelReservation : t.workshops.reserve}
+                          </button>
+                        )}
                       </CardContent>
                     </Card>
                   );
@@ -355,6 +449,104 @@ export default function Workshops() {
               </div>
             )}
           </TabsContent>
+          {canManage && !usesMock && (
+            <TabsContent value="created" className="mt-4">
+              {myWorkshops.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 text-center">
+                  <Calendar className="h-12 w-12 text-muted-foreground/20 mb-3" />
+                  <p className="text-sm text-muted-foreground">
+                    {locale === 'es' ? 'No has creado talleres aún.' : "You haven't created any workshops yet."}
+                  </p>
+                  <button
+                    onClick={() => setShowCreate(true)}
+                    className="mt-4 flex items-center gap-2 rounded-lg bg-gradient-accent px-4 py-2 text-sm font-semibold text-accent-foreground shadow-theme-sm transition-base hover:opacity-90"
+                  >
+                    <Plus className="h-4 w-4" />
+                    {locale === 'es' ? 'Crear taller' : 'Create workshop'}
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {myWorkshops.map((ws) => {
+                    const isExpanded = expandedId === ws.id;
+                    const isLoadingRegs = loadingRegistrants === ws.id;
+                    const registrants = registrantsCache[ws.id];
+                    return (
+                      <Card key={ws.id} className="border-border bg-card shadow-theme-sm">
+                        <CardContent className="p-4 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-violet-100 shrink-0">
+                                <Calendar className="h-5 w-5 text-violet-600" />
+                              </div>
+                              <div>
+                                <h3 className="text-sm font-bold text-foreground">
+                                  {locale === 'es' ? ws.title_es : ws.title_en}
+                                </h3>
+                                <p className="text-xs text-muted-foreground">
+                                  {ws.date} · {ws.time} · {ws.location}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <button
+                                onClick={() => fetchRegistrants(ws.id)}
+                                className="flex items-center gap-1.5 rounded-lg border border-violet-200 bg-violet-50 px-3 py-1.5 text-xs font-medium text-violet-700 transition-base hover:bg-violet-100"
+                              >
+                                {isLoadingRegs
+                                  ? <Loader2 className="h-3 w-3 animate-spin" />
+                                  : isExpanded
+                                  ? <ChevronUp className="h-3 w-3" />
+                                  : <ChevronDown className="h-3 w-3" />}
+                                <Users className="h-3 w-3" />
+                                {ws.reserved}/{ws.capacity}
+                              </button>
+                              <button
+                                onClick={() => deleteWorkshop(ws)}
+                                className="flex items-center gap-1.5 rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-1.5 text-xs font-medium text-destructive transition-base hover:bg-destructive/10"
+                              >
+                                <Trash2 className="h-3 w-3" />
+                                {locale === 'es' ? 'Eliminar' : 'Delete'}
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Registrants list */}
+                          {isExpanded && (
+                            <div className="rounded-xl bg-muted px-4 py-3 space-y-2">
+                              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                                {locale === 'es' ? 'Inscritos' : 'Registered students'}
+                              </p>
+                              {isLoadingRegs ? (
+                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                  <Loader2 className="h-3 w-3 animate-spin" /> {locale === 'es' ? 'Cargando…' : 'Loading…'}
+                                </div>
+                              ) : registrants && registrants.length > 0 ? (
+                                <ul className="space-y-1.5">
+                                  {registrants.map(r => (
+                                    <li key={r.user_id} className="flex items-center gap-2 text-xs text-foreground">
+                                      <div className="flex h-6 w-6 items-center justify-center rounded-full bg-secondary/20 text-secondary text-[10px] font-bold shrink-0">
+                                        {r.name.charAt(0).toUpperCase()}
+                                      </div>
+                                      {r.name}
+                                    </li>
+                                  ))}
+                                </ul>
+                              ) : (
+                                <p className="text-xs text-muted-foreground">
+                                  {locale === 'es' ? 'Nadie inscrito aún.' : 'No one registered yet.'}
+                                </p>
+                              )}
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </TabsContent>
+          )}
         </Tabs>
       )}
 

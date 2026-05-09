@@ -1,20 +1,23 @@
 import React, { useEffect, useState } from 'react';
 import { useI18n } from '@/lib/i18n';
 import { useAuth } from '@/lib/auth';
-import { useWallet } from '@solana/wallet-adapter-react';
+import { useWallet, useConnection } from '@solana/wallet-adapter-react';
+import { getAssociatedTokenAddress } from '@solana/spl-token';
+import { PublicKey } from '@solana/web3.js';
 import { useSteamBalance } from '@/hooks/useSteamBalance';
 import { Link } from 'react-router-dom';
-import { BookOpen, Award, Coins, TrendingUp, Bot, Flame, ArrowRight, ChevronRight, Sparkles } from 'lucide-react';
+import { BookOpen, Award, Coins, TrendingUp, Bot, Flame, ArrowRight, ChevronRight, Sparkles, Puzzle, CheckCircle2 } from 'lucide-react';
 import {
   getCourseModuleCount,
   getProgressForCourse,
   getProfileProgressSummary,
   getProgressPercent,
 } from '@/lib/courseProgress';
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { Area, AreaChart, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+const STEAM_MINT = import.meta.env.VITE_STEAM_MINT_ADDRESS as string | undefined;
 
 interface AiSession {
   title: string;
@@ -26,11 +29,14 @@ export default function Dashboard() {
   const { t, locale } = useI18n();
   const { user } = useAuth();
   const { publicKey } = useWallet();
+  const { connection } = useConnection();
   const studentName = user?.name?.split(' ')[0] || 'Student';
   const { balance: steamBalance } = useSteamBalance();
 
   const [profileProgress, setProfileProgress] = useState(() => getProfileProgressSummary());
   const [aiSessions, setAiSessions] = useState<AiSession[]>([]);
+  const [steamHistory, setSteamHistory] = useState<Record<string, number>>({});
+  const [loadingHistory, setLoadingHistory] = useState(false);
 
   // Refresh progress when any course activity fires
   useEffect(() => {
@@ -64,6 +70,53 @@ export default function Dashboard() {
       .catch(() => {});
   }, [user?.id]);
 
+  // Read per-day STEAM received from Solana transaction history
+  useEffect(() => {
+    if (!publicKey || !STEAM_MINT) return;
+    setLoadingHistory(true);
+
+    async function fetchOnChainHistory() {
+      try {
+        const mint = new PublicKey(STEAM_MINT!);
+        const ata = await getAssociatedTokenAddress(mint, publicKey!);
+        const signatures = await connection.getSignaturesForAddress(ata, { limit: 50 });
+
+        const history: Record<string, number> = {};
+
+        await Promise.all(signatures.map(async ({ signature }) => {
+          try {
+            const tx = await connection.getParsedTransaction(signature, {
+              maxSupportedTransactionVersion: 0,
+            });
+            if (!tx?.blockTime) return;
+
+            const day = new Date(tx.blockTime * 1000).toISOString().slice(0, 10);
+            const owner = publicKey!.toString();
+
+            const pre = tx.meta?.preTokenBalances
+              ?.find(b => b.mint === STEAM_MINT && b.owner === owner)
+              ?.uiTokenAmount.uiAmount ?? 0;
+
+            const post = tx.meta?.postTokenBalances
+              ?.find(b => b.mint === STEAM_MINT && b.owner === owner)
+              ?.uiTokenAmount.uiAmount ?? 0;
+
+            const received = post - pre;
+            if (received > 0) history[day] = (history[day] ?? 0) + received;
+          } catch {}
+        }));
+
+        setSteamHistory(history);
+      } catch (e) {
+        console.warn('STEAM history fetch failed:', e);
+      } finally {
+        setLoadingHistory(false);
+      }
+    }
+
+    fetchOnChainHistory();
+  }, [publicKey?.toString(), connection]);
+
   // Courses where user has started progress; fallback to first 4
   const coursesWithProgress = profileProgress.allCourses.filter(course => {
     const p = getProgressForCourse(course.id);
@@ -74,14 +127,19 @@ export default function Dashboard() {
     : profileProgress.allCourses
   ).slice(0, 4);
 
-  // Bar chart data: one bar per course with any progress
-  const chartData = coursesWithProgress.slice(0, 6).map(course => {
-    const p = getProgressForCourse(course.id);
-    return {
-      name: (locale === 'es' ? course.title.es : course.title.en).slice(0, 14) + '…',
-      pct: getProgressPercent(course, p),
-    };
+  // Curved area chart: STEAM received on-chain per day (last 7 days)
+  const last7 = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (6 - i));
+    return d.toISOString().slice(0, 10);
   });
+  const chartData = last7.map(day => ({
+    day: new Date(day + 'T12:00:00').toLocaleDateString(
+      locale === 'es' ? 'es-HN' : 'en-US',
+      { weekday: 'short', day: 'numeric' }
+    ),
+    steam: steamHistory[day] ?? 0,
+  }));
 
   // Recent activity: completed courses as token earnings
   const recentActivity = profileProgress.completedCourses.slice(0, 4).map(course => ({
@@ -200,6 +258,8 @@ export default function Dashboard() {
                 const progress = getProgressPercent(course, localProgress);
                 const completedLessons = localProgress.completedModules.length;
                 const lessonCount = getCourseModuleCount(course);
+                const hasGame = !!course.game;
+                const gameCompleted = localProgress.gameCompleted;
                 return (
                   <div
                     key={course.id}
@@ -223,12 +283,24 @@ export default function Dashboard() {
                           {completedLessons}/{lessonCount}
                         </span>
                       </div>
+                      {hasGame && (
+                        <div className="mt-1.5 flex items-center gap-1.5">
+                          {gameCompleted
+                            ? <CheckCircle2 className="h-3 w-3 text-emerald-500 shrink-0" />
+                            : <Puzzle className="h-3 w-3 text-amber-400 shrink-0" />}
+                          <span className={`text-[10px] font-semibold ${gameCompleted ? 'text-emerald-600' : 'text-amber-500'}`}>
+                            {gameCompleted
+                              ? locale === 'es' ? 'Reto completado' : 'Challenge done'
+                              : locale === 'es' ? 'Reto pendiente' : 'Challenge pending'}
+                          </span>
+                        </div>
+                      )}
                     </div>
                     <Link
                       to={`/courses/${course.id}`}
                       className="shrink-0 rounded-xl bg-gradient-to-r from-violet-500 to-indigo-600 px-3 py-1.5 text-[11px] font-bold text-white shadow-sm shadow-violet-200/60 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
                     >
-                      {progress >= 100 ? t.common.completed : t.courses.continueLesson}
+                      {progress >= 100 && (!hasGame || gameCompleted) ? t.common.completed : t.courses.continueLesson}
                     </Link>
                   </div>
                 );
@@ -238,35 +310,78 @@ export default function Dashboard() {
 
           {/* Progress Chart */}
           <div className="glass-card rounded-2xl overflow-hidden">
-            <div className="flex items-center gap-2 px-5 py-4 border-b border-white/40">
-              <TrendingUp className="h-4 w-4 text-violet-500" />
-              <h2 className="text-sm font-bold text-gray-900">{t.dashboard.progressAnalytics}</h2>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-white/40">
+              <div className="flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-violet-500" />
+                <h2 className="text-sm font-bold text-gray-900">{t.dashboard.progressAnalytics}</h2>
+              </div>
+              <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">
+                {locale === 'es' ? 'Últimos 7 días · STEAM on-chain' : 'Last 7 days · STEAM on-chain'}
+              </span>
             </div>
-            <div className="p-4">
-              {chartData.length === 0 ? (
-                <div className="flex h-[200px] items-center justify-center">
-                  <p className="text-sm text-gray-400">
-                    {locale === 'es' ? 'Completa módulos para ver tu progreso aquí.' : 'Complete modules to see your progress here.'}
+            <div className="p-4 relative">
+              {!publicKey && (
+                <div className="absolute inset-0 flex items-center justify-center z-10 bg-white/60 backdrop-blur-sm rounded-b-2xl">
+                  <p className="text-sm text-gray-400 font-medium">
+                    {locale === 'es' ? 'Conecta tu wallet para ver el historial' : 'Connect your wallet to see history'}
                   </p>
                 </div>
-              ) : (
-                <ResponsiveContainer width="100%" height={200}>
-                  <BarChart data={chartData} barSize={28}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.05)" vertical={false} />
-                    <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-                    <YAxis domain={[0, 100]} tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} unit="%" />
-                    <Tooltip
-                      formatter={(v: number) => [`${v}%`, locale === 'es' ? 'Completado' : 'Completed']}
-                      contentStyle={{ backgroundColor: 'rgba(255,255,255,0.9)', border: '1px solid rgba(255,255,255,0.5)', borderRadius: '12px', fontSize: '12px' }}
-                    />
-                    <Bar dataKey="pct" radius={[6, 6, 0, 0]}>
-                      {chartData.map((_, i) => (
-                        <Cell key={i} fill={i % 2 === 0 ? '#8b5cf6' : '#6366f1'} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
               )}
+              {loadingHistory && publicKey && (
+                <div className="absolute inset-0 flex items-center justify-center z-10 bg-white/60 backdrop-blur-sm rounded-b-2xl">
+                  <div className="flex items-center gap-2 text-sm text-violet-500 font-medium">
+                    <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                    </svg>
+                    {locale === 'es' ? 'Leyendo historial de Solana…' : 'Reading Solana history…'}
+                  </div>
+                </div>
+              )}
+              <ResponsiveContainer width="100%" height={200}>
+                <AreaChart data={chartData} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="steamGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.25} />
+                      <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.04)" vertical={false} />
+                  <XAxis
+                    dataKey="day"
+                    tick={{ fontSize: 10, fill: '#9ca3af' }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    tick={{ fontSize: 10, fill: '#9ca3af' }}
+                    axisLine={false}
+                    tickLine={false}
+                    allowDecimals={false}
+                  />
+                  <Tooltip
+                    formatter={(v: number) => [`${v} STEAM`, '']}
+                    labelFormatter={(label) => label}
+                    contentStyle={{
+                      backgroundColor: 'rgba(255,255,255,0.92)',
+                      border: '1px solid rgba(139,92,246,0.15)',
+                      borderRadius: '12px',
+                      fontSize: '12px',
+                      boxShadow: '0 4px 20px rgba(139,92,246,0.12)',
+                    }}
+                    cursor={{ stroke: '#8b5cf6', strokeWidth: 1, strokeDasharray: '4 4' }}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="steam"
+                    stroke="#8b5cf6"
+                    strokeWidth={2.5}
+                    fill="url(#steamGradient)"
+                    dot={{ fill: '#8b5cf6', stroke: '#fff', strokeWidth: 2, r: 4 }}
+                    activeDot={{ r: 6, fill: '#6d28d9', stroke: '#fff', strokeWidth: 2 }}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
             </div>
           </div>
         </div>
