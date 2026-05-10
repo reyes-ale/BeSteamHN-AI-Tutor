@@ -1,44 +1,60 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useI18n } from '@/lib/i18n';
 import { useAuth } from '@/lib/auth';
-import { GraduationCap, Mail, Lock, User, Eye, EyeOff, ArrowRight, Globe, Loader2, Sparkles, BookOpen } from 'lucide-react';
+import { GraduationCap, Mail, Lock, User, Eye, EyeOff, ArrowRight, Globe, Loader2, BookOpen } from 'lucide-react';
 
 const AVATARS = ['🧑‍💻', '👩‍🎓', '🧑‍🚀', '👩‍🔬', '🧑‍🎨', '👩‍💼', '🧑‍🏫', '👩‍🏫'];
 
+const C = {
+  primary: '#e8647a',
+  orange:  '#f4855c',
+  light:   '#fce7f3',
+  bg:      '#fff8f6',
+  navy:    '#1e1b4b',
+  gray:    '#6b7280',
+  muted:   '#9ca3af',
+  border:  '#fce7f3',
+};
+
+const inputStyle = (focused: boolean): React.CSSProperties => ({
+  width: '100%', boxSizing: 'border-box' as const,
+  padding: '11px 14px 11px 42px', borderRadius: 12,
+  border: `1.5px solid ${focused ? C.primary : C.border}`, background: 'white',
+  fontSize: 14, color: C.navy, outline: 'none',
+  transition: 'border-color 0.18s',
+});
+
 export default function SignUp() {
-  const { t, locale, setLocale } = useI18n();
+  const { locale, setLocale } = useI18n();
   const { signUp } = useAuth();
   const navigate = useNavigate();
 
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [name,            setName]            = useState('');
+  const [email,           setEmail]           = useState('');
+  const [password,        setPassword]        = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [selectedAvatar, setSelectedAvatar] = useState(0);
-  const [role, setRole] = useState<'student' | 'educator'>('student');
+  const [showPassword,    setShowPassword]    = useState(false);
+  const [error,           setError]           = useState('');
+  const [loading,         setLoading]         = useState(false);
+  const [selectedAvatar,  setSelectedAvatar]  = useState(0);
+  const [role,            setRole]            = useState<'student' | 'educator'>('student');
+  const [focused,         setFocused]         = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-
     if (password !== confirmPassword) {
       setError(locale === 'es' ? 'Las contraseñas no coinciden' : 'Passwords do not match');
       return;
     }
-
     if (password.length < 6) {
       setError(locale === 'es' ? 'La contraseña debe tener al menos 6 caracteres' : 'Password must be at least 6 characters');
       return;
     }
-
     setLoading(true);
     const result = await signUp(name, email, password, role);
     setLoading(false);
-
     if (result.success) {
       navigate('/dashboard');
     } else {
@@ -46,119 +62,141 @@ export default function SignUp() {
     }
   };
 
+  const labelStyle: React.CSSProperties = {
+    display: 'block', fontSize: 11, fontWeight: 700, color: C.gray,
+    marginBottom: 7, textTransform: 'uppercase', letterSpacing: '0.04em',
+  };
+
+  const iconStyle: React.CSSProperties = {
+    position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)',
+    width: 16, height: 16, color: C.primary,
+  };
+
   return (
-    <div className="flex min-h-screen bg-gradient-app">
-      {/* Background blobs */}
-      <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
-        <div className="absolute -top-32 -left-32 h-96 w-96 rounded-full bg-violet-300/25 blur-3xl" />
-        <div className="absolute bottom-0 -right-32 h-96 w-96 rounded-full bg-pink-300/25 blur-3xl" />
-      </div>
+    <div style={{ minHeight: '100vh', display: 'flex', fontFamily: "'Inter', system-ui, sans-serif" }}>
 
-      {/* Left Panel — Branding + Avatar preview */}
-      <div className="hidden lg:flex lg:w-[45%] flex-col justify-between p-12 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-violet-500 via-indigo-500 to-indigo-600 rounded-r-[3rem]" />
-        {/* Decorative circles */}
-        <div className="absolute top-0 right-0 h-64 w-64 rounded-full bg-white/5 -translate-y-1/3 translate-x-1/3" />
-        <div className="absolute bottom-0 left-0 h-48 w-48 rounded-full bg-white/5 translate-y-1/3 -translate-x-1/3" />
+      {/* ── Left panel ── */}
+      <div style={{
+        width: '42%', flexDirection: 'column', justifyContent: 'space-between',
+        padding: '48px', position: 'relative', overflow: 'hidden',
+        background: 'linear-gradient(145deg, #e8647a 0%, #f4855c 100%)',
+      }} className="hidden lg:flex">
+        <div style={{ position: 'absolute', top: -80, right: -80, width: 240, height: 240, borderRadius: '50%', background: 'rgba(255,255,255,0.10)' }} />
+        <div style={{ position: 'absolute', bottom: -60, left: -60, width: 180, height: 180, borderRadius: '50%', background: 'rgba(255,255,255,0.08)' }} />
 
-        <div className="relative z-10">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20 backdrop-blur-sm">
-              <GraduationCap className="h-6 w-6 text-white" />
-            </div>
-            <span className="text-xl font-bold text-white tracking-tight">BESTEAMHN</span>
+        {/* Logo */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, position: 'relative', zIndex: 1 }}>
+          <div style={{ width: 40, height: 40, borderRadius: 12, background: 'rgba(255,255,255,0.22)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <GraduationCap style={{ width: 22, height: 22, color: 'white' }} />
           </div>
+          <span style={{ fontSize: 18, fontWeight: 800, color: 'white', letterSpacing: '-0.01em' }}>BESTEAMHN</span>
         </div>
 
-        <div className="relative z-10 max-w-sm">
-          {/* Avatar display */}
-          <div className="mb-8 flex items-center justify-center">
-            <div className="flex h-24 w-24 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm text-5xl shadow-2xl ring-4 ring-white/30">
-              {AVATARS[selectedAvatar]}
-            </div>
+        {/* Content */}
+        <div style={{ position: 'relative', zIndex: 1 }}>
+          {/* Avatar preview */}
+          <div style={{
+            width: 80, height: 80, borderRadius: '50%',
+            background: 'rgba(255,255,255,0.22)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 40, marginBottom: 28,
+            boxShadow: '0 8px 32px rgba(0,0,0,0.10)',
+          }}>
+            {AVATARS[selectedAvatar]}
           </div>
 
-          <h1 className="text-3xl font-extrabold leading-tight text-white">
+          <h1 style={{ fontSize: 34, fontWeight: 800, color: 'white', lineHeight: 1.15, letterSpacing: '-0.02em', marginBottom: 14 }}>
             {locale === 'es' ? 'Comienza tu viaje de aprendizaje hoy' : 'Start your learning journey today'}
           </h1>
-          <p className="mt-4 text-sm leading-relaxed text-white/70">
-            {t.common.mission}
+          <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.72)', lineHeight: 1.65, maxWidth: 320 }}>
+            {locale === 'es'
+              ? 'Aprende con IA, gana certificados NFT y transforma tu futuro.'
+              : 'Learn with AI, earn NFT certificates and transform your future.'}
           </p>
-          <div className="mt-8 grid grid-cols-3 gap-4">
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, marginTop: 28 }}>
             {[
-              { value: '500+', label: locale === 'es' ? 'Estudiantes' : 'Students' },
-              { value: '8', label: locale === 'es' ? 'Cursos' : 'Courses' },
-              { value: '150+', label: 'NFTs' },
-            ].map((stat) => (
-              <div key={stat.label} className="rounded-2xl bg-white/10 backdrop-blur-sm p-4 text-center border border-white/20">
-                <p className="text-xl font-bold text-white">{stat.value}</p>
-                <p className="text-[10px] text-white/60 mt-0.5">{stat.label}</p>
+              { val: '500+', label: locale === 'es' ? 'Estudiantes' : 'Students' },
+              { val: '24',   label: locale === 'es' ? 'Cursos'      : 'Courses'  },
+              { val: '120+', label: 'NFTs' },
+            ].map((s) => (
+              <div key={s.label} style={{ padding: '12px', borderRadius: 12, background: 'rgba(255,255,255,0.16)', textAlign: 'center' }}>
+                <p style={{ fontSize: 18, fontWeight: 800, color: 'white', lineHeight: 1 }}>{s.val}</p>
+                <p style={{ fontSize: 9, color: 'rgba(255,255,255,0.60)', marginTop: 4 }}>{s.label}</p>
               </div>
             ))}
           </div>
         </div>
 
-        <div className="relative z-10 flex items-center gap-4 text-white/40 text-sm">
-          <span>© 2026 BESTEAMHN</span>
-          <span>·</span>
-          <span>Honduras</span>
-        </div>
+        <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.40)', position: 'relative', zIndex: 1 }}>© 2026 BESTEAMHN · Honduras</p>
       </div>
 
-      {/* Right Panel — Form */}
-      <div className="flex flex-1 flex-col items-center justify-center px-6 py-10">
+      {/* ── Right panel — form ── */}
+      <div style={{
+        flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
+        justifyContent: 'center', padding: '40px 24px', background: C.bg, position: 'relative', overflowY: 'auto',
+      }}>
         {/* Language toggle */}
-        <div className="absolute top-6 right-6">
+        <div style={{ position: 'absolute', top: 20, right: 20 }}>
           <button
             onClick={() => setLocale(locale === 'es' ? 'en' : 'es')}
-            className="flex items-center gap-1.5 rounded-xl border border-white/50 bg-white/60 px-3 py-1.5 text-sm font-medium text-gray-700 backdrop-blur-sm transition-base hover:bg-white/80"
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              padding: '7px 14px', borderRadius: 10,
+              background: 'white', border: `1px solid ${C.border}`,
+              fontSize: 12, fontWeight: 600, color: C.gray, cursor: 'pointer',
+              boxShadow: '0 2px 8px rgba(232,100,122,0.08)',
+            }}
           >
-            <Globe className="h-4 w-4 text-violet-400" />
+            <Globe style={{ width: 13, height: 13, color: C.primary }} />
             {locale === 'es' ? '🇭🇳 ES' : '🇺🇸 EN'}
           </button>
         </div>
 
-        <div className="w-full max-w-sm">
+        <div style={{ width: '100%', maxWidth: 380, paddingTop: 20, paddingBottom: 20 }}>
+
           {/* Mobile logo */}
-          <div className="mb-8 flex flex-col items-center lg:hidden">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-indigo-600 shadow-lg shadow-violet-200">
-              <GraduationCap className="h-7 w-7 text-white" />
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 28 }} className="lg:hidden">
+            <div style={{
+              width: 52, height: 52, borderRadius: 16,
+              background: 'linear-gradient(135deg, #e8647a, #f4855c)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 8px 24px rgba(232,100,122,0.30)',
+            }}>
+              <GraduationCap style={{ width: 28, height: 28, color: 'white' }} />
             </div>
-            <h2 className="mt-3 text-lg font-bold text-gray-900">BESTEAMHN AI Tutor</h2>
+            <p style={{ marginTop: 10, fontSize: 15, fontWeight: 800, color: C.navy }}>BESTEAMHN AI Tutor</p>
           </div>
 
-          {/* Card header */}
-          <div className="mb-6">
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-violet-100 px-3 py-1 mb-3">
-              <Sparkles className="h-3 w-3 text-violet-600" />
-              <span className="text-[11px] font-semibold text-violet-700 uppercase tracking-wide">
-                {locale === 'es' ? 'Únete Gratis' : 'Join Free'}
-              </span>
-            </div>
-            <h2 className="text-2xl font-bold text-gray-900">
-              {locale === 'es' ? 'Crear Cuenta' : 'Create Account'}
-            </h2>
-            <p className="mt-1 text-sm text-gray-500">
-              {locale === 'es' ? 'Únete a la comunidad BESTEAMHN' : 'Join the BESTEAMHN community'}
-            </p>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 12px', borderRadius: 99, background: C.light, marginBottom: 14 }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: C.primary, letterSpacing: '0.04em' }}>
+              {locale === 'es' ? '✨ ÚNETE GRATIS' : '✨ JOIN FREE'}
+            </span>
           </div>
+          <h2 style={{ fontSize: 26, fontWeight: 800, color: C.navy, marginBottom: 6 }}>
+            {locale === 'es' ? 'Crear Cuenta' : 'Create Account'}
+          </h2>
+          <p style={{ fontSize: 13, color: C.muted, marginBottom: 26 }}>
+            {locale === 'es' ? 'Únete a la comunidad BESTEAMHN' : 'Join the BESTEAMHN community'}
+          </p>
 
-          {/* Avatar Selector */}
-          <div className="mb-6">
-            <p className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">
-              {locale === 'es' ? 'Elige tu Avatar' : 'Choose Your Avatar'}
-            </p>
-            <div className="grid grid-cols-8 gap-1.5">
+          {/* Avatar picker */}
+          <div style={{ marginBottom: 22 }}>
+            <p style={labelStyle}>{locale === 'es' ? 'Elige tu Avatar' : 'Choose Your Avatar'}</p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8,1fr)', gap: 6 }}>
               {AVATARS.map((av, i) => (
                 <button
                   key={i}
                   type="button"
                   onClick={() => setSelectedAvatar(i)}
-                  className={`flex h-10 w-10 items-center justify-center rounded-xl text-xl transition-all duration-200 ${
-                    selectedAvatar === i
-                      ? 'bg-gradient-to-br from-violet-500 to-indigo-600 scale-110 shadow-md shadow-violet-200'
-                      : 'bg-gray-100 hover:bg-violet-50 hover:scale-105'
-                  }`}
+                  style={{
+                    width: 40, height: 40, borderRadius: 10, fontSize: 18, cursor: 'pointer',
+                    border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: selectedAvatar === i ? 'linear-gradient(135deg, #e8647a, #f4855c)' : '#fce7f3',
+                    transform: selectedAvatar === i ? 'scale(1.12)' : 'scale(1)',
+                    boxShadow: selectedAvatar === i ? '0 4px 14px rgba(232,100,122,0.35)' : 'none',
+                    transition: 'all 0.18s',
+                  }}
                 >
                   {av}
                 </button>
@@ -166,151 +204,145 @@ export default function SignUp() {
             </div>
           </div>
 
-          {/* Role Selector */}
-          <div className="mb-6">
-            <p className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">
-              {locale === 'es' ? 'Soy...' : 'I am a...'}
-            </p>
-            <div className="grid grid-cols-2 gap-3">
+          {/* Role picker */}
+          <div style={{ marginBottom: 22 }}>
+            <p style={labelStyle}>{locale === 'es' ? 'Soy...' : 'I am a...'}</p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               {([
-                { value: 'student', icon: GraduationCap, label: locale === 'es' ? 'Estudiante' : 'Student', desc: locale === 'es' ? 'Aprendo y gano STEAM' : 'I learn and earn STEAM' },
-                { value: 'educator', icon: BookOpen, label: locale === 'es' ? 'Educador' : 'Educator', desc: locale === 'es' ? 'Enseño y creo cursos' : 'I teach and create courses' },
-              ] as const).map((opt) => (
+                { value: 'student' as const,  Icon: GraduationCap, label: locale === 'es' ? 'Estudiante' : 'Student',  desc: locale === 'es' ? 'Aprendo y gano STEAM' : 'I learn and earn STEAM' },
+                { value: 'educator' as const, Icon: BookOpen,      label: locale === 'es' ? 'Educador'   : 'Educator', desc: locale === 'es' ? 'Enseño y creo cursos' : 'I teach and create courses' },
+              ]).map((opt) => (
                 <button
                   key={opt.value}
                   type="button"
                   onClick={() => setRole(opt.value)}
-                  className={`flex flex-col items-center gap-1.5 rounded-2xl border-2 px-3 py-4 text-center transition-all duration-200 ${
-                    role === opt.value
-                      ? 'border-violet-400 bg-violet-50 shadow-sm shadow-violet-100'
-                      : 'border-white/60 bg-white/50 hover:border-violet-200 hover:bg-violet-50/50'
-                  }`}
+                  style={{
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
+                    padding: '16px 12px', borderRadius: 14, cursor: 'pointer',
+                    border: `2px solid ${role === opt.value ? C.primary : C.border}`,
+                    background: role === opt.value ? C.light : 'white',
+                    transition: 'all 0.18s',
+                  }}
                 >
-                  <div className={`flex h-9 w-9 items-center justify-center rounded-xl ${role === opt.value ? 'bg-gradient-to-br from-violet-500 to-indigo-600' : 'bg-gray-100'}`}>
-                    <opt.icon className={`h-4 w-4 ${role === opt.value ? 'text-white' : 'text-gray-400'}`} />
+                  <div style={{
+                    width: 36, height: 36, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: role === opt.value ? 'linear-gradient(135deg, #e8647a, #f4855c)' : '#f3f4f6',
+                  }}>
+                    <opt.Icon style={{ width: 16, height: 16, color: role === opt.value ? 'white' : '#9ca3af' }} />
                   </div>
-                  <p className={`text-xs font-bold ${role === opt.value ? 'text-violet-700' : 'text-gray-600'}`}>{opt.label}</p>
-                  <p className="text-[10px] text-gray-400 leading-tight">{opt.desc}</p>
+                  <p style={{ fontSize: 12, fontWeight: 700, color: role === opt.value ? C.primary : C.gray }}>{opt.label}</p>
+                  <p style={{ fontSize: 10, color: C.muted, textAlign: 'center', lineHeight: 1.4 }}>{opt.desc}</p>
                 </button>
               ))}
             </div>
           </div>
 
+          {/* Error */}
           {error && (
-            <div className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-600">
+            <div style={{ marginBottom: 18, padding: '12px 16px', borderRadius: 12, background: '#fff1f2', border: '1px solid #fecdd3', fontSize: 13, color: '#e11d48' }}>
               {error}
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {/* Name */}
             <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1.5">
-                {locale === 'es' ? 'Nombre Completo' : 'Full Name'}
-              </label>
-              <div className="relative">
-                <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <label style={labelStyle}>{locale === 'es' ? 'Nombre Completo' : 'Full Name'}</label>
+              <div style={{ position: 'relative' }}>
+                <User style={iconStyle} />
                 <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  required
-                  minLength={2}
+                  type="text" value={name} onChange={(e) => setName(e.target.value)}
+                  required minLength={2}
                   placeholder={locale === 'es' ? 'María García' : 'Jane Smith'}
-                  className="w-full rounded-xl border border-white/60 bg-white/70 pl-10 pr-4 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-300 backdrop-blur-sm transition-base"
+                  style={inputStyle(focused === 'name')}
+                  onFocus={() => setFocused('name')} onBlur={() => setFocused(null)}
                 />
               </div>
             </div>
 
+            {/* Email */}
             <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1.5">
-                {locale === 'es' ? 'Correo Electrónico' : 'Email'}
-              </label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <label style={labelStyle}>{locale === 'es' ? 'Correo Electrónico' : 'Email'}</label>
+              <div style={{ position: 'relative' }}>
+                <Mail style={iconStyle} />
                 <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  placeholder={locale === 'es' ? 'tu@correo.com' : 'you@email.com'}
-                  className="w-full rounded-xl border border-white/60 bg-white/70 pl-10 pr-4 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-300 backdrop-blur-sm transition-base"
+                  type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+                  required placeholder={locale === 'es' ? 'tu@correo.com' : 'you@email.com'}
+                  style={inputStyle(focused === 'email')}
+                  onFocus={() => setFocused('email')} onBlur={() => setFocused(null)}
                 />
               </div>
             </div>
 
+            {/* Password */}
             <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1.5">
-                {locale === 'es' ? 'Contraseña' : 'Password'}
-              </label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <label style={labelStyle}>{locale === 'es' ? 'Contraseña' : 'Password'}</label>
+              <div style={{ position: 'relative' }}>
+                <Lock style={iconStyle} />
                 <input
-                  type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  minLength={6}
+                  type={showPassword ? 'text' : 'password'} value={password}
+                  onChange={(e) => setPassword(e.target.value)} required minLength={6}
                   placeholder="••••••••"
-                  className="w-full rounded-xl border border-white/60 bg-white/70 pl-10 pr-10 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-300 backdrop-blur-sm transition-base"
+                  style={{ ...inputStyle(focused === 'pw'), paddingRight: 42 }}
+                  onFocus={() => setFocused('pw')} onBlur={() => setFocused(null)}
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700"
-                >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                <button type="button" onClick={() => setShowPassword(!showPassword)}
+                  style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: C.muted, padding: 0 }}>
+                  {showPassword ? <EyeOff style={{ width: 16, height: 16 }} /> : <Eye style={{ width: 16, height: 16 }} />}
                 </button>
               </div>
             </div>
 
+            {/* Confirm password */}
             <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1.5">
-                {locale === 'es' ? 'Confirmar Contraseña' : 'Confirm Password'}
-              </label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <label style={labelStyle}>{locale === 'es' ? 'Confirmar Contraseña' : 'Confirm Password'}</label>
+              <div style={{ position: 'relative' }}>
+                <Lock style={iconStyle} />
                 <input
-                  type={showPassword ? 'text' : 'password'}
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  required
-                  minLength={6}
+                  type={showPassword ? 'text' : 'password'} value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)} required minLength={6}
                   placeholder="••••••••"
-                  className="w-full rounded-xl border border-white/60 bg-white/70 pl-10 pr-4 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-300 backdrop-blur-sm transition-base"
+                  style={inputStyle(focused === 'cpw')}
+                  onFocus={() => setFocused('cpw')} onBlur={() => setFocused(null)}
                 />
               </div>
             </div>
 
+            {/* Submit */}
             <button
-              type="submit"
-              disabled={loading}
-              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-violet-500 to-indigo-600 py-3 text-sm font-bold text-white shadow-lg shadow-violet-200/60 transition-base hover:opacity-90 hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed mt-2"
+              type="submit" disabled={loading}
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                width: '100%', padding: '13px', borderRadius: 99, border: 'none',
+                background: loading ? '#f4a3b3' : 'linear-gradient(135deg, #e8647a, #f4855c)',
+                color: 'white', fontSize: 14, fontWeight: 800, cursor: loading ? 'not-allowed' : 'pointer',
+                boxShadow: '0 6px 24px rgba(232,100,122,0.35)', marginTop: 4,
+              }}
             >
-              {loading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <>
-                  {locale === 'es' ? 'Crear Cuenta' : 'Create Account'}
-                  <ArrowRight className="h-4 w-4" />
-                </>
-              )}
+              {loading
+                ? <Loader2 style={{ width: 18, height: 18, animation: 'spin 1s linear infinite' }} />
+                : <>{locale === 'es' ? 'Crear Cuenta' : 'Create Account'} <ArrowRight style={{ width: 16, height: 16 }} /></>
+              }
             </button>
           </form>
 
-          <p className="mt-5 text-center text-sm text-gray-500">
+          <div style={{ margin: '24px 0 0', height: 3, borderRadius: 99, background: 'linear-gradient(90deg, #e8647a, #f4855c, #e8647a)' }} />
+
+          <p style={{ marginTop: 18, textAlign: 'center', fontSize: 13, color: C.muted }}>
             {locale === 'es' ? '¿Ya tienes cuenta?' : 'Already have an account?'}{' '}
-            <Link to="/signin" className="font-semibold text-violet-600 hover:underline">
+            <Link to="/signin" style={{ fontWeight: 700, color: C.primary, textDecoration: 'none' }}>
               {locale === 'es' ? 'Inicia Sesión' : 'Sign In'}
             </Link>
           </p>
-
-          <div className="mt-3 text-center">
-            <Link to="/" className="text-xs text-gray-400 hover:text-gray-700 transition-base">
+          <div style={{ marginTop: 10, textAlign: 'center' }}>
+            <Link to="/" style={{ fontSize: 12, color: '#c4b5c0', textDecoration: 'none' }}>
               {locale === 'es' ? '← Volver al inicio' : '← Back to home'}
             </Link>
           </div>
         </div>
       </div>
+
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } } .hidden { display: none !important; } @media(min-width:1024px){ .hidden { display: flex !important; } .lg\\:hidden { display: none !important; } }`}</style>
     </div>
   );
 }

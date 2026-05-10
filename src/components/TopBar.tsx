@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useI18n, type Locale } from '@/lib/i18n';
+import { useI18n } from '@/lib/i18n';
 import { useAuth } from '@/lib/auth';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { useWallet } from '@solana/wallet-adapter-react';
@@ -26,16 +26,13 @@ export default function TopBar() {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const notificationsRef = useRef<HTMLDivElement | null>(null);
 
-  const unreadCount = useMemo(() => notifications.filter((notification) => !notification.read).length, [notifications]);
+  const unreadCount = useMemo(() => notifications.filter((n) => !n.read).length, [notifications]);
 
-  const toggleLocale = () => {
-    setLocale(locale === 'es' ? 'en' : 'es');
-  };
+  const toggleLocale = () => setLocale(locale === 'es' ? 'en' : 'es');
 
   useEffect(() => {
     seedNotificationsIfEmpty(locale);
     setNotifications(getNotifications());
-
     const refresh = () => setNotifications(getNotifications());
     window.addEventListener(NOTIFICATIONS_EVENT, refresh);
     window.addEventListener('storage', refresh);
@@ -46,35 +43,32 @@ export default function TopBar() {
   }, [locale]);
 
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (!notificationsRef.current?.contains(event.target as Node)) {
-        setIsNotificationsOpen(false);
-      }
+    const handleClickOutside = (e: MouseEvent) => {
+      if (!notificationsRef.current?.contains(e.target as Node)) setIsNotificationsOpen(false);
     };
-
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   const notificationTypeLabel: Record<AppNotification['type'], string> = {
-    course: locale === 'es' ? 'Curso' : 'Course',
+    course:   locale === 'es' ? 'Curso'    : 'Course',
     progress: locale === 'es' ? 'Progreso' : 'Progress',
-    reward: 'STEAM',
-    system: locale === 'es' ? 'Sistema' : 'System',
+    reward:   'STEAM',
+    system:   locale === 'es' ? 'Sistema'  : 'System',
   };
 
   const formatNotificationTime = (createdAt: string) => {
-    const diffMs = Date.now() - new Date(createdAt).getTime();
+    const diffMs  = Date.now() - new Date(createdAt).getTime();
     const minutes = Math.max(1, Math.round(diffMs / 60000));
     if (minutes < 60) return locale === 'es' ? `Hace ${minutes} min` : `${minutes}m ago`;
     const hours = Math.round(minutes / 60);
-    if (hours < 24) return locale === 'es' ? `Hace ${hours} h` : `${hours}h ago`;
+    if (hours < 24)  return locale === 'es' ? `Hace ${hours} h`   : `${hours}h ago`;
     return new Date(createdAt).toLocaleDateString(locale === 'es' ? 'es-HN' : 'en-US');
   };
 
   return (
-    <header className="fixed left-64 right-0 top-0 z-30 flex h-16 items-center justify-between border-b border-white/40 glass px-6">
-      {/* Left: Page context */}
+    <header className="fixed left-64 right-0 top-0 z-30 flex h-16 items-center justify-between border-b border-pink-100/40 glass px-6">
+      {/* Left */}
       <div className="flex items-center gap-3">
         {publicKey && (
           <div className="flex items-center gap-2 rounded-xl bg-emerald-50 border border-emerald-200 px-3 py-1.5">
@@ -84,7 +78,7 @@ export default function TopBar() {
         )}
       </div>
 
-      {/* Right: Actions */}
+      {/* Right */}
       <div className="flex items-center gap-2.5">
         {/* STEAM Balance */}
         <div className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-400 to-orange-400 px-3 py-1.5 shadow-md shadow-amber-200/60">
@@ -93,56 +87,48 @@ export default function TopBar() {
           <span className="text-xs font-medium text-white/80">{t.common.steamTokens}</span>
         </div>
 
-        {/* Language Switcher */}
+        {/* Language */}
         <button
           onClick={toggleLocale}
-          className="flex items-center gap-1.5 rounded-xl border border-white/50 bg-white/60 px-3 py-1.5 text-sm font-medium text-gray-700 transition-base hover:bg-white/80 backdrop-blur-sm"
+          className="flex items-center gap-1.5 rounded-xl border border-pink-100/60 bg-white/60 px-3 py-1.5 text-sm font-medium text-gray-700 transition-base hover:bg-white/90 backdrop-blur-sm"
           title={locale === 'es' ? 'Switch to English' : 'Cambiar a Español'}
         >
-          <Globe className="h-4 w-4 text-violet-400" />
+          <Globe className="h-4 w-4 text-pink-400" />
           <span>{locale === 'es' ? '🇭🇳 ES' : '🇺🇸 EN'}</span>
         </button>
 
         {/* Notifications */}
         <div ref={notificationsRef} className="relative">
           <button
-            onClick={() => setIsNotificationsOpen((open) => !open)}
-            className="relative flex h-9 w-9 items-center justify-center rounded-xl border border-white/50 bg-white/60 text-gray-500 transition-base hover:bg-white/80 backdrop-blur-sm"
+            onClick={() => setIsNotificationsOpen((o) => !o)}
+            className="relative flex h-9 w-9 items-center justify-center rounded-xl border border-pink-100/60 bg-white/60 text-gray-500 transition-base hover:bg-white/90 backdrop-blur-sm"
             title={locale === 'es' ? 'Notificaciones' : 'Notifications'}
           >
             <Bell className="h-4 w-4" />
             {unreadCount > 0 && (
-              <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white">
+              <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-pink-500 px-1 text-[10px] font-bold text-white">
                 {unreadCount > 9 ? '9+' : unreadCount}
               </span>
             )}
           </button>
 
           {isNotificationsOpen && (
-            <div className="absolute right-0 top-11 z-50 w-96 overflow-hidden rounded-2xl border border-white/60 bg-white/95 shadow-2xl backdrop-blur-sm">
+            <div className="absolute right-0 top-11 z-50 w-96 overflow-hidden rounded-2xl border border-pink-100/40 bg-white/96 shadow-2xl backdrop-blur-sm">
               <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
                 <div>
                   <h2 className="text-sm font-bold text-gray-900">{locale === 'es' ? 'Notificaciones' : 'Notifications'}</h2>
-                  <p className="text-xs text-gray-400">
-                    {unreadCount} {locale === 'es' ? 'sin leer' : 'unread'}
-                  </p>
+                  <p className="text-xs text-gray-400">{unreadCount} {locale === 'es' ? 'sin leer' : 'unread'}</p>
                 </div>
                 <div className="flex items-center gap-1">
                   <button
-                    onClick={() => {
-                      markAllNotificationsRead();
-                      setNotifications(getNotifications());
-                    }}
+                    onClick={() => { markAllNotificationsRead(); setNotifications(getNotifications()); }}
                     title={locale === 'es' ? 'Marcar todo leido' : 'Mark all read'}
-                    className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-violet-50 hover:text-violet-600"
+                    className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-pink-50 hover:text-pink-600"
                   >
                     <CheckCheck className="h-4 w-4" />
                   </button>
                   <button
-                    onClick={() => {
-                      clearNotifications();
-                      setNotifications([]);
-                    }}
+                    onClick={() => { clearNotifications(); setNotifications([]); }}
                     title={locale === 'es' ? 'Limpiar' : 'Clear'}
                     className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-500"
                   >
@@ -163,8 +149,8 @@ export default function TopBar() {
                   notifications.map((notification) => {
                     const content = (
                       <div
-                        className={`group flex gap-3 rounded-xl p-3 transition-colors hover:bg-violet-50 ${
-                          notification.read ? 'opacity-75' : 'bg-violet-50/60'
+                        className={`group flex gap-3 rounded-xl p-3 transition-colors hover:bg-pink-50 ${
+                          notification.read ? 'opacity-75' : 'bg-pink-50/50'
                         }`}
                         onClick={() => {
                           markNotificationRead(notification.id);
@@ -172,10 +158,10 @@ export default function TopBar() {
                           setIsNotificationsOpen(false);
                         }}
                       >
-                        <div className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${notification.read ? 'bg-gray-300' : 'bg-violet-500'}`} />
+                        <div className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${notification.read ? 'bg-gray-300' : 'bg-pink-500'}`} />
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center justify-between gap-2">
-                            <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-bold text-violet-600 shadow-sm">
+                            <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-bold text-pink-600 shadow-sm">
                               {notificationTypeLabel[notification.type]}
                             </span>
                             <span className="text-[10px] font-semibold text-gray-400">{formatNotificationTime(notification.createdAt)}</span>
@@ -184,9 +170,9 @@ export default function TopBar() {
                           <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-gray-500">{notification.description}</p>
                         </div>
                         <button
-                          onClick={(event) => {
-                            event.preventDefault();
-                            event.stopPropagation();
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
                             removeNotification(notification.id);
                             setNotifications(getNotifications());
                           }}
@@ -199,9 +185,7 @@ export default function TopBar() {
                     );
 
                     return notification.href ? (
-                      <Link key={notification.id} to={notification.href} className="block">
-                        {content}
-                      </Link>
+                      <Link key={notification.id} to={notification.href} className="block">{content}</Link>
                     ) : (
                       <div key={notification.id}>{content}</div>
                     );
@@ -215,10 +199,10 @@ export default function TopBar() {
         {/* Wallet */}
         <WalletMultiButton />
 
-        {/* User Menu */}
+        {/* User */}
         {user && (
-          <div className="flex items-center gap-2 border-l border-white/40 pl-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-violet-400 to-indigo-500 shadow-sm">
+          <div className="flex items-center gap-2 border-l border-pink-100/50 pl-2.5">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-pink-400 to-rose-500 shadow-sm">
               <User className="h-4 w-4 text-white" />
             </div>
             <div className="hidden xl:block">
