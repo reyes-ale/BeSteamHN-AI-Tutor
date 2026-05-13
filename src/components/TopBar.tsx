@@ -67,9 +67,9 @@ export default function TopBar() {
   };
 
   return (
-    <header className="fixed left-64 right-0 top-0 z-30 flex h-16 items-center justify-between border-b border-pink-100/40 glass px-6">
+    <header className="fixed left-0 right-0 top-0 z-30 flex h-16 items-center justify-between gap-2 border-b border-pink-100/40 glass px-3 sm:px-5 lg:left-64 lg:px-6">
       {/* Left */}
-      <div className="flex items-center gap-3">
+      <div className="flex min-w-0 items-center gap-2">
         {publicKey && (
           <div className="flex items-center gap-2 rounded-xl bg-emerald-50 border border-emerald-200 px-3 py-1.5">
             <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
@@ -79,9 +79,9 @@ export default function TopBar() {
       </div>
 
       {/* Right */}
-      <div className="flex items-center gap-2.5">
+      <div className="flex min-w-0 items-center gap-1.5 sm:gap-2.5">
         {/* STEAM Balance */}
-        <div className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-400 to-orange-400 px-3 py-1.5 shadow-md shadow-amber-200/60">
+        <div className="hidden items-center gap-2 rounded-xl bg-gradient-to-r from-amber-400 to-orange-400 px-3 py-1.5 shadow-md shadow-amber-200/60 sm:flex">
           <Coins className="h-4 w-4 text-white" />
           <span className="text-sm font-bold text-white">{balance}</span>
           <span className="text-xs font-medium text-white/80">{t.common.steamTokens}</span>
@@ -90,7 +90,7 @@ export default function TopBar() {
         {/* Language */}
         <button
           onClick={toggleLocale}
-          className="flex items-center gap-1.5 rounded-xl border border-pink-100/60 bg-white/60 px-3 py-1.5 text-sm font-medium text-gray-700 transition-base hover:bg-white/90 backdrop-blur-sm"
+          className="flex h-9 items-center gap-1.5 rounded-xl border border-pink-100/60 bg-white/60 px-2.5 text-xs font-medium text-gray-700 transition-base hover:bg-white/90 backdrop-blur-sm sm:px-3 sm:text-sm"
           title={locale === 'es' ? 'Switch to English' : 'Cambiar a Español'}
         >
           <Globe className="h-4 w-4 text-pink-400" />
@@ -113,7 +113,7 @@ export default function TopBar() {
           </button>
 
           {isNotificationsOpen && (
-            <div className="absolute right-0 top-11 z-50 w-96 overflow-hidden rounded-2xl border border-pink-100/40 bg-white/96 shadow-2xl backdrop-blur-sm">
+            <div className="absolute right-0 top-11 z-50 w-[calc(100vw-1.5rem)] max-w-96 overflow-hidden rounded-2xl border border-pink-100/40 bg-white/96 shadow-2xl backdrop-blur-sm">
               <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
                 <div>
                   <h2 className="text-sm font-bold text-gray-900">{locale === 'es' ? 'Notificaciones' : 'Notifications'}</h2>

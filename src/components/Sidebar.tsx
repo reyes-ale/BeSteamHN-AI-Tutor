@@ -30,9 +30,9 @@ export default function Sidebar() {
   const { user, signOut } = useAuth();
 
   return (
-    <aside className="fixed left-0 top-0 z-40 flex h-screen w-64 flex-col glass-strong border-r border-pink-100/60 shadow-xl shadow-pink-100/30">
+    <aside className="fixed inset-x-3 bottom-3 top-auto z-40 flex h-16 flex-row items-center rounded-2xl glass-strong border border-pink-100/60 shadow-xl shadow-pink-100/30 lg:left-0 lg:top-0 lg:bottom-auto lg:h-screen lg:w-64 lg:flex-col lg:items-stretch lg:rounded-none lg:border-r">
       {/* Logo */}
-      <div className="flex h-16 items-center gap-3 border-b border-pink-100/50 px-5">
+      <div className="hidden h-16 items-center gap-3 border-b border-pink-100/50 px-5 lg:flex">
         <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-pink-500 to-rose-500 shadow-md shadow-pink-200">
           <GraduationCap className="h-5 w-5 text-white" />
         </div>
@@ -43,7 +43,7 @@ export default function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
+      <nav className="flex flex-1 items-center gap-1 overflow-x-auto px-2 py-2 lg:block lg:space-y-1 lg:overflow-y-auto lg:px-3 lg:py-4">
         {navItems.filter(item => {
           if (item.key === 'admin')           return user?.role === 'admin';
           if (item.key === 'educatorCourses') return user?.role === 'educator' || user?.role === 'admin';
@@ -53,7 +53,7 @@ export default function Sidebar() {
             key={item.key}
             to={item.path}
             className={({ isActive }) =>
-              `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-base ${
+              `flex min-w-[3.25rem] flex-1 flex-col items-center justify-center gap-1 rounded-xl px-2 py-2 text-[10px] font-semibold transition-base lg:min-w-0 lg:flex-row lg:justify-start lg:gap-3 lg:px-3 lg:py-2.5 lg:text-sm ${
                 isActive
                   ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-md shadow-pink-200/60'
                   : 'text-gray-600 hover:bg-pink-50 hover:text-pink-700'
@@ -67,7 +67,7 @@ export default function Sidebar() {
                 }`}>
                   <item.icon className="h-[16px] w-[16px]" />
                 </span>
-                <span>{t.nav[item.key]}</span>
+                <span className="max-w-14 truncate lg:max-w-none">{t.nav[item.key]}</span>
               </>
             )}
           </NavLink>
@@ -75,7 +75,7 @@ export default function Sidebar() {
       </nav>
 
       {/* User info & sign out */}
-      <div className="border-t border-pink-100/50 p-3">
+      <div className="hidden border-t border-pink-100/50 p-3 lg:block">
         {user && (
           <div className="flex items-center gap-3 rounded-2xl bg-pink-50/80 border border-pink-100 p-2.5">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-pink-400 to-rose-500 text-xs font-bold text-white shadow-sm">

@@ -183,19 +183,19 @@ export default function Dashboard() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto w-full max-w-7xl space-y-5 sm:space-y-6">
       {/* Welcome Banner */}
-      <div className="glass-card rounded-2xl p-6 flex items-center justify-between">
-        <div className="flex items-center gap-4">
+      <div className="glass-card rounded-2xl p-4 sm:p-6 flex flex-col items-stretch gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3 sm:gap-4">
           <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-indigo-600 shadow-lg shadow-violet-200 text-2xl">
             {user?.name ? user.name.charAt(0).toUpperCase() + '🎓' : '🎓'}
           </div>
-          <div>
+          <div className="min-w-0">
             <p className="text-xs font-semibold text-violet-500 uppercase tracking-wide flex items-center gap-1">
               <Sparkles className="h-3 w-3" />
               {locale === 'es' ? 'Bienvenido de vuelta' : 'Welcome back'}
             </p>
-            <h1 className="text-xl font-bold text-gray-900">
+            <h1 className="text-lg font-bold text-gray-900 sm:text-xl">
               {t.dashboard.welcome}, {studentName} 👋
             </h1>
             <p className="text-sm text-gray-500 mt-0.5">{t.dashboard.aiGreeting}</p>
@@ -203,7 +203,7 @@ export default function Dashboard() {
         </div>
         <Link
           to="/courses"
-          className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-500 to-indigo-600 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-violet-200/60 transition-base hover:opacity-90 hover:scale-105"
+          className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-500 to-indigo-600 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-violet-200/60 transition-base hover:opacity-90 sm:w-auto"
         >
           {t.dashboard.viewCatalog}
           <ArrowRight className="h-4 w-4" />
@@ -211,11 +211,11 @@ export default function Dashboard() {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         {stats.map((stat) => (
           <div
             key={stat.label}
-            className="glass-card rounded-2xl p-5 transition-all duration-300 hover:scale-[1.03] hover:shadow-xl group"
+            className="glass-card rounded-2xl p-4 transition-all duration-300 hover:shadow-xl group sm:p-5"
           >
             <div className="flex items-center justify-between mb-4">
               <div className={`flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br ${stat.gradient} shadow-md ${stat.shadow} transition-transform duration-300 group-hover:scale-110`}>
@@ -227,16 +227,16 @@ export default function Dashboard() {
                 </span>
               )}
             </div>
-            <p className="text-3xl font-extrabold text-gray-900">{stat.value}</p>
+            <p className="text-2xl font-extrabold text-gray-900 sm:text-3xl">{stat.value}</p>
             <p className="mt-1 text-xs text-gray-500 font-medium">{stat.label}</p>
           </div>
         ))}
       </div>
 
       {/* Main Bento Grid */}
-      <div className="grid grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
         {/* Left: Courses + Chart */}
-        <div className="col-span-2 space-y-5">
+        <div className="space-y-5 xl:col-span-2">
           {/* My Courses */}
           <div className="glass-card rounded-2xl overflow-hidden">
             <div className="flex items-center justify-between px-5 py-4 border-b border-white/40">
@@ -263,7 +263,7 @@ export default function Dashboard() {
                 return (
                   <div
                     key={course.id}
-                    className="flex items-center gap-4 rounded-xl bg-white/50 border border-white/60 p-3.5 transition-all duration-200 hover:bg-white/80 hover:shadow-md group"
+                    className="flex items-center gap-3 rounded-xl bg-white/50 border border-white/60 p-3 transition-all duration-200 hover:bg-white/80 hover:shadow-md group sm:gap-4 sm:p-3.5"
                   >
                     <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${course.color} text-2xl shadow-sm`}>
                       {course.image}
@@ -298,7 +298,7 @@ export default function Dashboard() {
                     </div>
                     <Link
                       to={`/courses/${course.id}`}
-                      className="shrink-0 rounded-xl bg-gradient-to-r from-violet-500 to-indigo-600 px-3 py-1.5 text-[11px] font-bold text-white shadow-sm shadow-violet-200/60 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                      className="hidden shrink-0 rounded-xl bg-gradient-to-r from-violet-500 to-indigo-600 px-3 py-1.5 text-[11px] font-bold text-white shadow-sm shadow-violet-200/60 transition-opacity duration-200 sm:block sm:opacity-0 sm:group-hover:opacity-100"
                     >
                       {progress >= 100 && (!hasGame || gameCompleted) ? t.common.completed : t.courses.continueLesson}
                     </Link>
@@ -310,7 +310,7 @@ export default function Dashboard() {
 
           {/* Progress Chart */}
           <div className="glass-card rounded-2xl overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-white/40">
+            <div className="flex flex-col gap-1 px-5 py-4 border-b border-white/40 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-2">
                 <TrendingUp className="h-4 w-4 text-violet-500" />
                 <h2 className="text-sm font-bold text-gray-900">{t.dashboard.progressAnalytics}</h2>

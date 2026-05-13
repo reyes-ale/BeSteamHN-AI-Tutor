@@ -5,6 +5,9 @@ scripts/.mint-authority.json
 coverage/
 dist/
 build/
+target/
+.anchor/
+.wallets/
 .env
 .env.local
 .env.development.local

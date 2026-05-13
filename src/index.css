@@ -198,6 +198,22 @@
 .wallet-adapter-dropdown { z-index: 50; }
 .wallet-adapter-modal-wrapper { border-radius: var(--radius) !important; }
 
+@media (max-width: 640px) {
+  .wallet-adapter-button-trigger {
+    height: 2.25rem !important;
+    max-width: 8.5rem !important;
+    overflow: hidden !important;
+    padding: 0 0.75rem !important;
+    font-size: 0.75rem !important;
+    white-space: nowrap !important;
+  }
+
+  .wallet-adapter-button-trigger i,
+  .wallet-adapter-button-trigger svg {
+    display: none !important;
+  }
+}
+
 /* Scrollbar */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: hsl(var(--muted)); border-radius: 3px; }
